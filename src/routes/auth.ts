@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import axios from 'axios';
 import User from '../models/User';
 import jwt from 'jsonwebtoken';
+import authenticate from "../middleware/auth";
 
 const router = Router();
 
@@ -71,6 +72,21 @@ router.post('/auth/refresh', async (req, res) => {
     });
   } catch (error) {
     res.status(401).json({ message: 'Invalid or expired token' });
+  }
+});
+
+router.post('/auth/logout', authenticate, async (req, res) => {
+  try {
+    const { deviceId } = req.body;
+    const user = await User.findById(req.userId);
+
+    if (!user) throw new Error('User not found');
+
+    user.revokeRefreshToken(deviceId);
+
+    res.json({ message: 'Logged out successfully' });
+  } catch (error) {
+    res.status(401).json({ message: 'Invalid token' });
   }
 });
 
