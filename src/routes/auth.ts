@@ -5,6 +5,8 @@ import jwt from 'jsonwebtoken';
 
 const router = Router();
 
+const getHighResPhoto = (photo: string) => photo.replace(/=s\d+-c$/, '=s400-c');
+
 router.post('/login/google', async (req: Request<{}, {}, { idToken: string, deviceId: string }>, res: Response) => {
   const { idToken, deviceId } = req.body;
   if (!idToken || !deviceId) return res.status(400).json({ message: 'idToken and deviceId are required' });
@@ -14,9 +16,10 @@ router.post('/login/google', async (req: Request<{}, {}, { idToken: string, devi
     const response = await axios.get(googleApiUrl);
     const { sub: providerId, name, email, picture } = response.data;
 
+    const highResPicture = getHighResPhoto(picture);
     let user = await User.findOne({ provider: 'google', providerId });
     if (!user) {
-      user = await User.create({ provider: 'google', providerId, name, email, picture });
+      user = await User.create({ provider: 'google', providerId, name, email, picture: highResPicture });
     }
 
     const accessToken = user.generateAccessToken();
