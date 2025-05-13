@@ -1,7 +1,8 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
+import usersRoutes from './routes/users';
 import wordRoutes from './routes/words';
 
 dotenv.config();
@@ -10,7 +11,12 @@ const app = express();
 app.use(express.json());
 
 app.use('/auth', authRoutes);
+app.use('/users', usersRoutes);
 app.use('/api', wordRoutes);
+
+app.get('/', (req: Request, res: Response) => {
+  res.status(200).json({ message: 'API is working', status: 'OK' });
+});
 
 mongoose.connect(process.env.MONGO_URI!).then(() => {
   console.log('Connected to MongoDB');

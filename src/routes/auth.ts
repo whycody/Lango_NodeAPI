@@ -5,13 +5,9 @@ import jwt from 'jsonwebtoken';
 
 const router = Router();
 
-interface LoginRequestBody {
-  idToken: string;
-}
-
-router.post('/login/google', async (req: Request<{}, {}, LoginRequestBody>, res: Response) => {
-  const { idToken } = req.body;
-  if (!idToken) return res.status(400).json({ message: 'idToken is required' });
+router.post('/login/google', async (req: Request<{}, {}, { idToken: string, deviceId: string }>, res: Response) => {
+  const { idToken, deviceId } = req.body;
+  if (!idToken || !deviceId) return res.status(400).json({ message: 'idToken and deviceId are required' });
 
   try {
     const googleApiUrl = `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`;
@@ -24,16 +20,17 @@ router.post('/login/google', async (req: Request<{}, {}, LoginRequestBody>, res:
     }
 
     const accessToken = user.generateAccessToken();
-    const refreshToken = user.generateRefreshToken();
+    const refreshToken = user.registerDeviceAndGenerateRefreshToken(deviceId);
+
     res.json({ accessToken, refreshToken });
   } catch (error) {
     res.status(401).json({ message: 'Invalid Google ID token' });
   }
 });
 
-router.post('/login/facebook', async (req: Request<{}, {}, { accessToken: string }>, res: Response) => {
-  const { accessToken } = req.body;
-  if (!accessToken) return res.status(400).json({ message: 'accessToken is required' });
+router.post('/login/facebook', async (req: Request<{}, {}, { accessToken: string, deviceId: string }>, res: Response) => {
+  const { accessToken, deviceId } = req.body;
+  if (!accessToken || !deviceId) return res.status(400).json({ message: 'accessToken and deviceId are required' });
 
   try {
     const facebookApiUrl = `https://graph.facebook.com/me?fields=id,name,email,picture&access_token=${accessToken}`;
@@ -46,27 +43,31 @@ router.post('/login/facebook', async (req: Request<{}, {}, { accessToken: string
     }
 
     const newAccessToken = user.generateAccessToken();
-    const newRefreshToken = user.generateRefreshToken();
+    const newRefreshToken = user.registerDeviceAndGenerateRefreshToken(deviceId);
+
     res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
   } catch (error) {
     res.status(401).json({ message: 'Invalid Facebook access token' });
   }
 });
 
-router.post('/refresh-token', async (req: Request<{}, {}, { refreshToken: string }>, res: Response) => {
-  const { refreshToken } = req.body;
-  if (!refreshToken) return res.status(400).json({ message: 'Refresh token is required' });
-
+router.post('/auth/refresh', async (req, res) => {
   try {
-    const payload = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET!) as { userId: string };
-    const user = await User.findById(payload.userId);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    const { refreshToken, deviceId } = req.body;
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET!) as { userId: string };
+    const user = await User.findById(decoded.userId);
 
+    if (!user) throw new Error('User not found');
+
+    const newRefreshToken = user.extendRefreshToken(refreshToken, deviceId);
     const newAccessToken = user.generateAccessToken();
-    const newRefreshToken = user.generateRefreshToken();
-    res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
+
+    res.json({
+      refreshToken: newRefreshToken,
+      accessToken: newAccessToken
+    });
   } catch (error) {
-    res.status(403).json({ message: 'Invalid or expired refresh token' });
+    res.status(401).json({ message: 'Invalid or expired token' });
   }
 });
 
