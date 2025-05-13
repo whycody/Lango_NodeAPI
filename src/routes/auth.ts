@@ -36,7 +36,7 @@ router.post('/login/facebook', async (req: Request<{}, {}, { accessToken: string
   if (!accessToken || !deviceId) return res.status(400).json({ message: 'accessToken and deviceId are required' });
 
   try {
-    const facebookApiUrl = `https://graph.facebook.com/me?fields=id,name,email,picture&access_token=${accessToken}`;
+    const facebookApiUrl = `https://graph.facebook.com/me?fields=id,name,picture.type(large),email&access_token=${accessToken}`;
     const response = await axios.get(facebookApiUrl);
     const { id: providerId, name, email, picture } = response.data;
 

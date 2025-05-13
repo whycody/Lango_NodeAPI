@@ -25,7 +25,7 @@ const userSchema = new Schema<User>({
   provider: { type: String, enum: ['google', 'facebook'], required: true },
   providerId: { type: String, required: true, unique: true },
   name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
+  email: { type: String, required: false, unique: true },
   picture: { type: String },
   refreshTokens: [{
     deviceId: { type: String, required: true },
