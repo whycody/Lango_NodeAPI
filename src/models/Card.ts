@@ -1,6 +1,7 @@
 import { Schema, model, Document } from 'mongoose';
 
 interface Word extends Document {
+  id: string;
   userId: string;
   text: string;
   translation: string;
@@ -13,6 +14,7 @@ interface Word extends Document {
   lastReviewDate: Date;
   nextReviewDate: Date;
   EF: number;
+  updatedAt: Date;
 }
 
 const wordSchema = new Schema<Word>({
@@ -28,6 +30,14 @@ const wordSchema = new Schema<Word>({
   lastReviewDate: { type: Date, default: Date.now },
   nextReviewDate: { type: Date, default: Date.now },
   EF: { type: Number, default: 2.5 },
+  updatedAt: { type: Date, default: Date.now },
+}, {
+  timestamps: { updatedAt: 'updatedAt', createdAt: false },
+  _id: false,
+});
+
+wordSchema.virtual('id').get(function(this: Word) {
+  return this._id?.toString() ?? '';
 });
 
 export default model<Word>('Word', wordSchema);
