@@ -18,6 +18,7 @@ interface Word extends Document {
 }
 
 const wordSchema = new Schema<Word>({
+  _id: { type: String, required: true },
   userId: { type: String, required: true },
   text: { type: String, required: true },
   translation: { type: String, required: true },
@@ -33,11 +34,10 @@ const wordSchema = new Schema<Word>({
   updatedAt: { type: Date, default: Date.now },
 }, {
   timestamps: { updatedAt: 'updatedAt', createdAt: false },
-  _id: false,
 });
 
 wordSchema.virtual('id').get(function(this: Word) {
-  return this._id?.toString() ?? '';
+  return this._id;
 });
 
 export default model<Word>('Word', wordSchema);
