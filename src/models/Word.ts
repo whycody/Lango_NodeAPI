@@ -15,6 +15,8 @@ interface Word extends Document {
   nextReviewDate: Date;
   EF: number;
   updatedAt: Date;
+  active: boolean;
+  removed: boolean;
 }
 
 const wordSchema = new Schema<Word>({
@@ -32,6 +34,8 @@ const wordSchema = new Schema<Word>({
   nextReviewDate: { type: Date, default: Date.now },
   EF: { type: Number, default: 2.5 },
   updatedAt: { type: Date, default: Date.now },
+  active: { type: Boolean, default: true },
+  removed: { type: Boolean, default: false },
 }, {
   timestamps: { updatedAt: 'updatedAt', createdAt: false },
 });
