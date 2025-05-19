@@ -8,7 +8,6 @@ interface Evaluation extends Document {
   grade: number;
   date: Date;
   updatedAt: Date;
-  locallyUpdatedAt: Date;
 }
 
 const evaluationSchema = new Schema<Evaluation>({
@@ -18,7 +17,6 @@ const evaluationSchema = new Schema<Evaluation>({
   sessionId: { type: String, required: true },
   grade: { type: Number, required: true },
   date: { type: Date, required: true },
-  locallyUpdatedAt: { type: Date, required: true },
   updatedAt: { type: Date, default: Date.now },
 }, {
   timestamps: { updatedAt: 'updatedAt', createdAt: false },
