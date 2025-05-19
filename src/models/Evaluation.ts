@@ -1,31 +1,31 @@
 import { Schema, model, Document } from 'mongoose';
 
-interface Session extends Document {
+interface Evaluation extends Document {
   id: string;
   userId: string;
+  wordId: string;
+  sessionId: string;
+  grade: number;
   date: Date;
-  mode: string,
-  averageScore: number;
-  wordsCount: number;
   updatedAt: Date;
   locallyUpdatedAt: Date;
 }
 
-const sessionSchema = new Schema<Session>({
+const evaluationSchema = new Schema<Evaluation>({
   _id: { type: String, required: true },
   userId: { type: String, required: true },
+  wordId: { type: String, required: true },
+  sessionId: { type: String, required: true },
+  grade: { type: Number, required: true },
   date: { type: Date, required: true },
-  mode: { type: String, required: true },
-  averageScore: { type: Number, required: true },
-  wordsCount: { type: Number, required: true },
   locallyUpdatedAt: { type: Date, required: true },
   updatedAt: { type: Date, default: Date.now },
 }, {
   timestamps: { updatedAt: 'updatedAt', createdAt: false },
 });
 
-sessionSchema.virtual('id').get(function(this: Session) {
+evaluationSchema.virtual('id').get(function(this: Evaluation) {
   return this._id;
 });
 
-export default model<Session>('Session', sessionSchema);
+export default model<Evaluation>('Evaluation', evaluationSchema);

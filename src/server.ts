@@ -5,6 +5,7 @@ import authRoutes from './routes/auth';
 import usersRoutes from './routes/users';
 import wordRoutes from './routes/words';
 import sessionsRoutes from './routes/sessions';
+import evaluationsRoutes from './routes/evaluations';
 
 dotenv.config();
 
@@ -14,6 +15,7 @@ app.use(express.json());
 app.use('/auth', authRoutes);
 app.use('/users', usersRoutes);
 app.use('/sessions', sessionsRoutes);
+app.use('/evaluations', evaluationsRoutes);
 app.use('/api', wordRoutes);
 
 app.get('/', (req: Request, res: Response) => {
