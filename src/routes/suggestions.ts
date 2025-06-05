@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { fetchNewWordsSuggestions } from "../services/gpt";
 import { endGeneration, isGenerationInProgress, startGeneration } from "../services/wordGenerationLock";
 import Word from "../models/Word";
+import DefaultSuggestion from "../models/DefaultSuggestion";
 
 const router = Router();
 
@@ -44,14 +45,92 @@ async function generateSuggestionsInBackground(userId: string, firstLang: string
   startGeneration(key);
 
   try {
-    const last20Words = await Word.find({ userId, firstLang: firstLang, secondLang: secondLang })
-      .sort({ addDate: -1 })
-      .limit(50)
-      .lean();
+    const userWords = await Word.find({ userId, firstLang, secondLang }).lean();
 
-    if (!last20Words.length) return;
+    if (userWords.length === 0) {
+      const userSuggestions = await WordSuggestion.find({ userId, firstLang, secondLang }).lean();
 
-    const contextWords = last20Words.map(w => w.text);
+      const knownWords = new Set([
+        ...userWords.map(w => w.text.toLowerCase()),
+        ...userSuggestions.map(s => s.word.toLowerCase()),
+      ]);
+
+      let defaults = await DefaultSuggestion.find({ firstLang, secondLang }).lean();
+
+      const unseenDefaults = defaults.filter(
+        d => d.word && !knownWords.has(d.word.toLowerCase())
+      );
+
+      if (unseenDefaults.length === 0) {
+        const generated = await fetchNewWordsSuggestions(firstLang, secondLang, []);
+
+        const existingDefaults = await DefaultSuggestion.find({ firstLang, secondLang }).lean();
+        const existingUserWords = await Word.find({ userId, firstLang, secondLang }).lean();
+        const existingUserSuggestions = await WordSuggestion.find({ userId, firstLang, secondLang }).lean();
+
+        const existingDefaultWords = new Set(existingDefaults.map(d => d.word?.toLowerCase()));
+        const existingUserWordsSet = new Set([
+          ...existingUserWords.map(w => w.text.toLowerCase()),
+          ...existingUserSuggestions.map(s => s.word.toLowerCase()),
+        ]);
+
+        const uniqueGenerated = generated.filter(
+          g =>
+            g.word &&
+            !existingDefaultWords.has(g.word.toLowerCase()) &&
+            !existingUserWordsSet.has(g.word.toLowerCase())
+        );
+
+        const newDefaults = uniqueGenerated.map(w => ({
+          word: w.word,
+          translation: w.translation,
+          firstLang,
+          secondLang,
+        }));
+
+        if (newDefaults.length) {
+          await DefaultSuggestion.insertMany(newDefaults);
+        }
+
+        const newUserSuggestions = uniqueGenerated.map(w => ({
+          _id: uuidv4(),
+          userId,
+          word: w.word,
+          translation: w.translation,
+          firstLang,
+          secondLang,
+          displayCount: 0,
+          skipped: false,
+          updatedAt: new Date(),
+        }));
+
+        if (newUserSuggestions.length) {
+          await WordSuggestion.insertMany(newUserSuggestions);
+        }
+      } else {
+        const newUserSuggestions = unseenDefaults.map(d => ({
+          _id: uuidv4(),
+          userId,
+          word: d.word!,
+          translation: d.translation!,
+          firstLang,
+          secondLang,
+          displayCount: 0,
+          skipped: false,
+          updatedAt: new Date(),
+        }));
+
+        await WordSuggestion.insertMany(newUserSuggestions);
+      }
+
+      return;
+    }
+
+    const contextWords = userWords
+      .sort((a, b) => (b.addDate?.getTime() ?? 0) - (a.addDate?.getTime() ?? 0))
+      .slice(0, 50)
+      .map(w => w.text);
+
     const generatedSuggestions = await fetchNewWordsSuggestions(firstLang, secondLang, contextWords);
 
     const existingWords = await Word.find({ userId, firstLang, secondLang }).lean();
@@ -78,7 +157,7 @@ async function generateSuggestionsInBackground(userId: string, firstLang: string
       }));
 
     if (newSuggestions.length) {
-      await WordSuggestion.create(newSuggestions);
+      await WordSuggestion.insertMany(newSuggestions);
     }
   } catch (error) {
     console.error("Error generating suggestions in background:", error);
