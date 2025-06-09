@@ -27,9 +27,14 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
 
   let suggestions = await WordSuggestion.find(baseQuery).lean();
 
+  const displayedLessThan3 = suggestions.filter(s => s.displayCount <= 3).length;
+
   if (suggestions.length >= MAX_MIN_DISPLAYED) {
     res.json(suggestions.map(s => ({ ...s, id: s._id, _id: undefined })));
-    generateSuggestionsInBackground(userId, firstLang, secondLang);
+
+    if (displayedLessThan3 <= MAX_MIN_DISPLAYED) {
+      generateSuggestionsInBackground(userId, firstLang, secondLang);
+    }
     return;
   }
 
@@ -62,7 +67,7 @@ async function generateSuggestionsInBackground(userId: string, firstLang: string
       );
 
       if (unseenDefaults.length === 0) {
-        const generated = await fetchNewWordsSuggestions(firstLang, secondLang, []);
+        const generated = await fetchNewWordsSuggestions(firstLang, secondLang, Array.from(knownWords), true);
 
         const existingDefaults = await DefaultSuggestion.find({ firstLang, secondLang }).lean();
         const existingUserWords = await Word.find({ userId, firstLang, secondLang }).lean();
@@ -108,7 +113,7 @@ async function generateSuggestionsInBackground(userId: string, firstLang: string
           await WordSuggestion.insertMany(newUserSuggestions);
         }
       } else {
-        const newUserSuggestions = unseenDefaults.map(d => ({
+        const newUserSuggestions = unseenDefaults.slice(0, 30).map(d => ({
           _id: uuidv4(),
           userId,
           word: d.word!,
