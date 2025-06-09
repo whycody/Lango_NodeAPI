@@ -7,6 +7,7 @@ import { fetchNewWordsSuggestions } from "../services/gpt";
 import { endGeneration, isGenerationInProgress, startGeneration } from "../services/wordGenerationLock";
 import Word from "../models/Word";
 import DefaultSuggestion from "../models/DefaultSuggestion";
+import { logPromptReport } from "../utils/promptLogger";
 
 const router = Router();
 
@@ -79,12 +80,29 @@ async function generateSuggestionsInBackground(userId: string, firstLang: string
           ...existingUserSuggestions.map(s => s.word.toLowerCase()),
         ]);
 
-        const uniqueGenerated = generated.filter(
+        const uniqueGenerated = generated.words.filter(
           g =>
             g.word &&
             !existingDefaultWords.has(g.word.toLowerCase()) &&
             !existingUserWordsSet.has(g.word.toLowerCase())
         );
+
+        await logPromptReport({
+          prompt: generated.metadata.prompt,
+          excludedWords: generated.metadata.excludedWords,
+          words: generated.metadata.words,
+          totalWords: generated.words.length,
+          hasExcludedWords: generated.metadata.hasExcludedWords,
+          wordsAdded: uniqueGenerated.length,
+          tokensInput: generated.metadata.tokensInput,
+          tokensOutput: generated.metadata.tokensOutput,
+          costUSD: generated.metadata.costUSD,
+          model: generated.metadata.model,
+          success: generated.metadata.success,
+          firstLang,
+          secondLang,
+          userId,
+        });
 
         const newDefaults = uniqueGenerated.map(w => ({
           word: w.word,
@@ -146,7 +164,7 @@ async function generateSuggestionsInBackground(userId: string, firstLang: string
       ...existingSuggestions.map(s => s.word.toLowerCase()),
     ]);
 
-    const newSuggestions = generatedSuggestions
+    const newSuggestions = generatedSuggestions.words
       .filter(s => !allKnownWords.has(s.word.toLowerCase()))
       .slice(0, 30)
       .map(s => ({
@@ -160,6 +178,25 @@ async function generateSuggestionsInBackground(userId: string, firstLang: string
         skipped: false,
         updatedAt: new Date(),
       }));
+
+    const metadata = generatedSuggestions.metadata;
+
+    await logPromptReport({
+      prompt: metadata.prompt,
+      excludedWords: metadata.excludedWords,
+      words: metadata.words,
+      totalWords: metadata.totalWords,
+      hasExcludedWords: metadata.hasExcludedWords,
+      wordsAdded: newSuggestions.length,
+      tokensInput: metadata.tokensInput,
+      tokensOutput: metadata.tokensOutput,
+      costUSD: metadata.costUSD,
+      model: metadata.model,
+      success: metadata.success,
+      userId,
+      firstLang,
+      secondLang,
+    });
 
     if (newSuggestions.length) {
       await WordSuggestion.insertMany(newSuggestions);

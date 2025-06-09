@@ -5,7 +5,21 @@ export async function fetchNewWordsSuggestions(
   secondLang: string,
   contextWords: string[],
   defaults: boolean = false
-): Promise<{ word: string; translation: string }[]> {
+): Promise<{
+  words: { word: string; translation: string }[],
+  metadata: {
+    prompt: string,
+    words: string[],
+    excludedWords: string[],
+    totalWords: number,
+    hasExcludedWords: boolean,
+    tokensInput?: number,
+    tokensOutput?: number,
+    costUSD?: number,
+    model: string,
+    success: boolean
+  }
+}> {
 
   const langNames: Record<string, string> = {
     it: 'Italian',
@@ -16,6 +30,7 @@ export async function fetchNewWordsSuggestions(
     de: 'German',
   };
 
+  const model = "gpt-4o-mini";
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
   const contextExamples = contextWords
     .sort(() => Math.random() - 0.5)
@@ -37,7 +52,7 @@ export async function fetchNewWordsSuggestions(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini",
+      model: model,
       messages: [{ role: "user", content: prompt }],
       temperature: 0.3,
       max_tokens: 400,
@@ -45,13 +60,14 @@ export async function fetchNewWordsSuggestions(
   });
 
   const data = await response.json() as {
-    choices: { message: { content: string } }[];
+    choices: { message: { content: string } }[],
+    usage?: { prompt_tokens: number, completion_tokens: number, total_tokens: number }
   };
   const text = data.choices[0].message.content;
 
   console.log('OpenAI response: ', text);
 
-  return text
+  const words = text
     .split(";")
     .filter(Boolean)
     .map((pair: string) => {
@@ -59,4 +75,34 @@ export async function fetchNewWordsSuggestions(
       const translation = translationRaw.trim().replace(/\.$/, '');
       return { word: word.trim(), translation };
     });
+
+  const excludedWords = contextExamples.toLowerCase().split(';');
+  const lowerWords = words.map(w => w.word.toLowerCase());
+
+  const hasExcludedWords = lowerWords.some(w =>
+    excludedWords.some(ex => w.includes(ex))
+  );
+
+  const tokensInput = data.usage?.prompt_tokens;
+  const tokensOutput = data.usage?.completion_tokens;
+
+  const costUSD = tokensInput && tokensOutput
+    ? (tokensInput / 1_000_000) * 0.60 + (tokensOutput / 1_000_000) * 2.40
+    : undefined;
+
+  return {
+    words,
+    metadata: {
+      prompt,
+      excludedWords,
+      words: words.map(w => w.word),
+      totalWords: words.length,
+      hasExcludedWords,
+      tokensInput,
+      tokensOutput,
+      costUSD,
+      model,
+      success: !hasExcludedWords
+    }
+  };
 }
