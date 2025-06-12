@@ -1,4 +1,4 @@
-import { PromptReport } from "../models/PromptReport";
+import { PromptReport } from "../../models/PromptReport";
 
 interface PromptReportData {
   prompt: string;
