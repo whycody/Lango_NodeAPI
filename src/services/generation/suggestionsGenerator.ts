@@ -74,7 +74,7 @@ async function generateFromGptAndStore(userId: string, firstLang: string, second
 
   await logPromptReport({
     ...generated.metadata,
-    wordsAdded: uniqueGenerated.length,
+    addedWords: uniqueGenerated.map((suggestion) => suggestion.word),
     firstLang,
     secondLang,
     userId,
@@ -110,9 +110,11 @@ async function generateSuggestionsWithUserWords(userId: string, firstLang: strin
 
   const generated = await fetchNewWordsSuggestions(firstLang, secondLang, contextWords);
 
+  const existingDefaults = await DefaultSuggestion.find({ firstLang, secondLang }).lean();
   const existingWords = await Word.find({ userId, firstLang, secondLang }).lean();
   const existingSuggestions = await WordSuggestion.find({ userId, firstLang, secondLang }).lean();
   const known = new Set([
+    ...existingDefaults.map(d => d.word?.toLowerCase()),
     ...existingWords.map(w => w.text.toLowerCase()),
     ...existingSuggestions.map(s => s.word.toLowerCase()),
   ]);
@@ -134,7 +136,7 @@ async function generateSuggestionsWithUserWords(userId: string, firstLang: strin
 
   await logPromptReport({
     ...generated.metadata,
-    wordsAdded: newSuggestions.length,
+    addedWords: newSuggestions.map((suggestion) => suggestion.word),
     firstLang,
     secondLang,
     userId,

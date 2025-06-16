@@ -89,7 +89,7 @@ export async function fetchNewWordsSuggestions(
     body: JSON.stringify({
       model,
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.3,
+      temperature: 0.9,
       max_tokens: 400,
     }),
   });

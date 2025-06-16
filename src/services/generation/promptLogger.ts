@@ -6,7 +6,7 @@ interface PromptReportData {
   excludedWords: string[];
   totalWords: number;
   hasExcludedWords: boolean;
-  wordsAdded: number;
+  addedWords: string[];
   tokensInput?: number;
   tokensOutput?: number;
   costUSD?: number;

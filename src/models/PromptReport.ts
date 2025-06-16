@@ -6,7 +6,7 @@ const PromptReportSchema = new mongoose.Schema({
   excludedWords: [{ type: String }],
   totalWords: { type: Number, required: true },
   hasExcludedWords: { type: Boolean, required: true },
-  wordsAdded: { type: Number, required: true },
+  addedWords: [{ type: String }],
   tokensInput: { type: Number },
   tokensOutput: { type: Number },
   costUSD: { type: Number },
