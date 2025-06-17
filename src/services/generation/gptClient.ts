@@ -23,7 +23,7 @@ const langNames: Record<string, string> = {
   de: 'German',
 };
 
-function buildPrompt({ firstLang, secondLang, contextWords, defaults }: {
+export function buildPrompt({ firstLang, secondLang, contextWords, defaults }: {
   firstLang: string;
   secondLang: string;
   contextWords: string[];
@@ -47,7 +47,7 @@ function buildPrompt({ firstLang, secondLang, contextWords, defaults }: {
   return `Generate 40 ${contextWords.length >= 100 ? 'medium' : 'basic'}-level words in ${fromLangName} with translations in ${toLangName} language. ${base} Strictly exclude the following words and any of their forms: ${contextExamples}. If any excluded word appears, regenerate the entire list until none appear.`;
 }
 
-function parseResponseText(text: string): WordPair[] {
+export function parseResponseText(text: string): WordPair[] {
   return text
     .split(";")
     .filter(Boolean)
@@ -59,7 +59,7 @@ function parseResponseText(text: string): WordPair[] {
     .filter(w => w.word && w.translation);
 }
 
-function detectExcludedWords(words: string[], excludedWords: string[]): boolean {
+export function detectExcludedWords(words: string[], excludedWords: string[]): boolean {
   return words.some(w =>
     excludedWords.some(ex => w.toLowerCase().includes(ex.toLowerCase()))
   );
