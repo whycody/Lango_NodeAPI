@@ -37,9 +37,17 @@ describe('generateSuggestionsInBackground', () => {
 
   it('should call startGeneration and endGeneration', async () => {
     (isGenerationInProgress as jest.Mock).mockReturnValue(false);
-    (Word.find as jest.Mock).mockResolvedValue([]);
-    (WordSuggestion.find as jest.Mock).mockResolvedValue([]);
-    (DefaultSuggestion.find as jest.Mock).mockResolvedValue([]);
+    (Word.find as jest.Mock).mockReturnValue({
+      lean: jest.fn().mockResolvedValue([]),
+    });
+
+    (WordSuggestion.find as jest.Mock).mockReturnValue({
+      lean: jest.fn().mockResolvedValue([]),
+    });
+
+    (DefaultSuggestion.find as jest.Mock).mockReturnValue({
+      lean: jest.fn().mockResolvedValue([]),
+    });
     (WordSuggestion.insertMany as jest.Mock).mockResolvedValue(undefined);
     (DefaultSuggestion.insertMany as jest.Mock).mockResolvedValue(undefined);
     (fetchNewWordsSuggestions as jest.Mock).mockResolvedValue({
@@ -146,7 +154,9 @@ describe('generateSuggestionsInBackground', () => {
       lean: jest.fn().mockResolvedValueOnce(mockWords).mockResolvedValueOnce([]),
     });
 
-    (WordSuggestion.find as jest.Mock).mockResolvedValueOnce([]); // dla existingSuggestions
+    (WordSuggestion.find as jest.Mock).mockReturnValue({
+      lean: jest.fn().mockResolvedValue([]),
+    });
 
     (fetchNewWordsSuggestions as jest.Mock).mockResolvedValueOnce({
       words: [],
@@ -240,10 +250,13 @@ describe('generateSuggestionsInBackground', () => {
     ];
 
     (Word.find as jest.Mock).mockReturnValue({
-      lean: jest.fn().mockResolvedValueOnce(userWords),
+      lean: jest.fn().mockResolvedValue(userWords),
     });
     (WordSuggestion.find as jest.Mock).mockReturnValue({
-      lean: jest.fn().mockResolvedValueOnce([]),
+      lean: jest.fn().mockResolvedValue([]),
+    });
+    (DefaultSuggestion.find as jest.Mock).mockReturnValue({
+      lean: jest.fn().mockResolvedValue([]),
     });
     (fetchNewWordsSuggestions as jest.Mock).mockResolvedValueOnce({
       words: [],
@@ -286,7 +299,7 @@ describe('generateSuggestionsInBackground', () => {
     expect(logPromptReport).toHaveBeenCalledWith(expect.objectContaining({
       promptTokens: 100,
       completionTokens: 50,
-      wordsAdded: 1,
+      addedWords: ['newword'],
       userId,
       firstLang,
       secondLang,
