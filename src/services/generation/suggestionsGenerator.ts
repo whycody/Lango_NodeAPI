@@ -60,17 +60,19 @@ async function createUserSuggestionsFromDefaults(defaults: any[], userId: string
 async function generateFromGptAndStore(userId: string, firstLang: string, secondLang: string, knownWords: Set<string>) {
   const generated = await fetchNewWordsSuggestions(firstLang, secondLang, Array.from(knownWords), true);
 
-  const existingDefaults = await DefaultSuggestion.find({ firstLang, secondLang }).lean();
-  const existingUserWords = await Word.find({ userId, firstLang, secondLang }).lean();
-  const existingUserSuggestions = await WordSuggestion.find({ userId, firstLang, secondLang }).lean();
-
-  const allKnown = new Set([
-    ...existingDefaults.map(d => d.word?.toLowerCase()),
-    ...existingUserWords.map(w => w.text.toLowerCase()),
-    ...existingUserSuggestions.map(s => s.word.toLowerCase()),
+  const [defaults, words, suggestions] = await Promise.all([
+    DefaultSuggestion.find({ firstLang, secondLang }).lean(),
+    Word.find({ userId, firstLang, secondLang }).lean(),
+    WordSuggestion.find({ userId, firstLang, secondLang }).lean(),
   ]);
 
-  const uniqueGenerated = generated.words.filter(w => w.word && !allKnown.has(w.word.toLowerCase()));
+  const allKnown = new Set([
+    ...defaults.map(d => d.word?.toLowerCase()),
+    ...words.map(w => w.text.toLowerCase()),
+    ...suggestions.map(s => s.word.toLowerCase()),
+  ]);
+
+  const uniqueGenerated = (generated.words ?? []).filter(w => w.word && !allKnown.has(w.word.toLowerCase()));
 
   await logPromptReport({
     ...generated.metadata,

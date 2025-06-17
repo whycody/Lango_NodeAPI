@@ -30,4 +30,6 @@ suggestionSchema.virtual('id').get(function (this: Suggestion) {
   return this._id;
 });
 
+suggestionSchema.index({ userId: 1 });
+
 export default model<Suggestion>('Suggestion', suggestionSchema);

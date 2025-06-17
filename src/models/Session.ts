@@ -28,4 +28,6 @@ sessionSchema.virtual('id').get(function(this: Session) {
   return this._id;
 });
 
+sessionSchema.index({ userId: 1 });
+
 export default model<Session>('Session', sessionSchema);
