@@ -1,10 +1,17 @@
 import { Schema, model, Document } from 'mongoose';
 
+export enum SESSION_MODE {
+  HEURISTIC = 'heuristic',
+  ML = 'ml',
+  HYBRID = 'hybrid',
+}
+
 interface Session extends Document {
   id: string;
   userId: string;
   date: Date;
   mode: string,
+  sessionModel: SESSION_MODE;
   averageScore: number;
   wordsCount: number;
   finished: boolean;
@@ -17,6 +24,7 @@ const sessionSchema = new Schema<Session>({
   userId: { type: String, required: true },
   date: { type: Date, required: true },
   mode: { type: String, required: true },
+  sessionModel: { type: 'String', enum: SESSION_MODE, required: true },
   averageScore: { type: Number, required: true },
   wordsCount: { type: Number, required: true },
   finished: { type: Boolean, default: true },

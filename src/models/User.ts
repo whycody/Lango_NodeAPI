@@ -1,5 +1,6 @@
 import { Schema, model, Document } from 'mongoose';
 import jwt from 'jsonwebtoken';
+import { SESSION_MODE } from "./Session";
 
 interface RefreshToken {
   deviceId: string;
@@ -13,6 +14,7 @@ interface User extends Document {
   name: string;
   email: string;
   picture?: string;
+  sessionModel: SESSION_MODE;
   refreshTokens: RefreshToken[];
   generateAccessToken(): string;
   registerDeviceAndGenerateRefreshToken(deviceId: string): string;
@@ -27,6 +29,7 @@ const userSchema = new Schema<User>({
   name: { type: String, required: true },
   email: { type: String, required: false, unique: true },
   picture: { type: String },
+  sessionModel: { type: String, enum: SESSION_MODE, default: SESSION_MODE.HYBRID, required: true },
   refreshTokens: [{
     deviceId: { type: String, required: true },
     token: { type: String, required: true },

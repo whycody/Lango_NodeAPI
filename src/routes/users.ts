@@ -26,7 +26,7 @@ router.get('/users', authenticate, async (req: Request, res: Response) => {
       : 0;
 
     const studyDays = Array.from(new Set(
-        sessions.map(s => s.date.toISOString().split('T')[0])
+      sessions.map(s => s.date.toISOString().split('T')[0])
     ));
 
     const evaluationCount = await Evaluation.countDocuments({ userId });
@@ -37,6 +37,7 @@ router.get('/users', authenticate, async (req: Request, res: Response) => {
       name: user.name,
       email: user.email,
       picture: user.picture,
+      sessionModel: user.sessionModel,
       stats: {
         sessionCount,
         averageScore,
