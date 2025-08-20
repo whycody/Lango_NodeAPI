@@ -20,7 +20,7 @@ router.get('/users', authenticate, async (req: Request, res: Response) => {
     }
 
     const sessions = await Session.find({ userId });
-    const sessionCount = sessions.length;
+    const sessionCount = sessions.filter((s) => s.finished).length;
     const averageScore = sessionCount > 0
       ? sessions.reduce((sum, s) => sum + s.averageScore, 0) / sessionCount
       : 0;

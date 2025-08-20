@@ -7,6 +7,7 @@ interface Session extends Document {
   mode: string,
   averageScore: number;
   wordsCount: number;
+  finished: boolean;
   updatedAt: Date;
   locallyUpdatedAt: Date;
 }
@@ -18,13 +19,14 @@ const sessionSchema = new Schema<Session>({
   mode: { type: String, required: true },
   averageScore: { type: Number, required: true },
   wordsCount: { type: Number, required: true },
+  finished: { type: Boolean, default: true },
   locallyUpdatedAt: { type: Date, required: true },
   updatedAt: { type: Date, default: Date.now },
 }, {
   timestamps: { updatedAt: 'updatedAt', createdAt: false },
 });
 
-sessionSchema.virtual('id').get(function(this: Session) {
+sessionSchema.virtual('id').get(function (this: Session) {
   return this._id;
 });
 
