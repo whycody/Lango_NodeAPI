@@ -46,4 +46,4 @@ wordSchema.virtual('id').get(function(this: Word) {
 
 wordSchema.index({ userId: 1 });
 
-export default model<Word>('Word', wordSchema);
+export default model<Word>('Word', wordSchema, 'words');

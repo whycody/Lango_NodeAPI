@@ -18,4 +18,4 @@ const PromptReportSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-export const PromptReport = mongoose.model('PromptReport', PromptReportSchema);
+export const PromptReport = mongoose.model('PromptReport', PromptReportSchema, 'prompt_reports');

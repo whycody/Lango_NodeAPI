@@ -26,4 +26,4 @@ evaluationSchema.virtual('id').get(function(this: Evaluation) {
   return this._id;
 });
 
-export default model<Evaluation>('Evaluation', evaluationSchema);
+export default model<Evaluation>('Evaluation', evaluationSchema, 'evaluations');

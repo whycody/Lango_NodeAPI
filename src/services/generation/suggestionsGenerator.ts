@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { endGeneration, isGenerationInProgress, startGeneration } from "./generationLock";
 import Word from "../../models/Word";
-import WordSuggestion from "../../models/WordSuggestion";
+import WordSuggestion from "../../models/Suggestion";
 import DefaultSuggestion from "../../models/DefaultSuggestion";
 import { fetchNewWordsSuggestions } from "./gptClient";
 import { logPromptReport } from "./promptLogger";

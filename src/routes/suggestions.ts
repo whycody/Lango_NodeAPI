@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import authenticate from '../middleware/auth';
 import { getSuggestionsForUser } from '../services/suggestions/suggestionService';
-import WordSuggestion from "../models/WordSuggestion";
+import WordSuggestion from "../models/Suggestion";
 
 const router = Router();
 

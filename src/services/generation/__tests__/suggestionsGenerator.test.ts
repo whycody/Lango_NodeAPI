@@ -1,6 +1,6 @@
 import * as suggestionsGenerator from '../suggestionsGenerator';
 import Word from '../../../models/Word';
-import WordSuggestion from '../../../models/WordSuggestion';
+import WordSuggestion from '../../../models/Suggestion';
 import DefaultSuggestion from '../../../models/DefaultSuggestion';
 import { fetchNewWordsSuggestions } from '../gptClient';
 import { logPromptReport } from '../promptLogger';
@@ -8,7 +8,7 @@ import { isGenerationInProgress, startGeneration, endGeneration } from '../gener
 import { generateSuggestionsInBackground } from "../suggestionsGenerator";
 
 jest.mock('../../../models/Word');
-jest.mock('../../../models/WordSuggestion');
+jest.mock('../../../models/Suggestion');
 jest.mock('../../../models/DefaultSuggestion');
 jest.mock('../gptClient');
 jest.mock('../promptLogger');

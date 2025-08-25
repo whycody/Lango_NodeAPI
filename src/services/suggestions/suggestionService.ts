@@ -1,4 +1,4 @@
-import WordSuggestion from '../../models/WordSuggestion';
+import WordSuggestion from '../../models/Suggestion';
 import { generateSuggestionsInBackground } from '../generation/suggestionsGenerator';
 
 const MAX_MIN_DISPLAYED = 20;

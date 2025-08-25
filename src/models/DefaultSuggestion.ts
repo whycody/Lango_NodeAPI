@@ -7,4 +7,4 @@ const DefaultSuggestionSchema = new Schema({
   secondLang: String,
 });
 
-export default model('DefaultSuggestion', DefaultSuggestionSchema);
+export default model('DefaultSuggestion', DefaultSuggestionSchema, 'default_suggestions');

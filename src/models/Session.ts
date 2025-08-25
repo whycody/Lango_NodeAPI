@@ -40,4 +40,4 @@ sessionSchema.virtual('id').get(function (this: Session) {
 
 sessionSchema.index({ userId: 1 });
 
-export default model<Session>('Session', sessionSchema);
+export default model<Session>('Session', sessionSchema, 'sessions');

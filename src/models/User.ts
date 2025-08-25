@@ -109,4 +109,4 @@ userSchema.methods.revokeRefreshToken = function (deviceId: string): void {
 };
 
 
-export default model<User>('User', userSchema);
+export default model<User>('User', userSchema, 'users');
