@@ -3,8 +3,8 @@ import { generateSuggestionsInBackground } from '../generation/suggestionsGenera
 
 const MAX_MIN_DISPLAYED = 20;
 
-export async function getSuggestionsForUser(userId: string, firstLang: string, secondLang: string, since?: string) {
-  const baseQuery: any = { userId, skipped: false, firstLang, secondLang };
+export async function getSuggestionsForUser(userId: string, mainLang: string, translationLang: string, since?: string) {
+  const baseQuery: any = { userId, skipped: false, mainLang, translationLang };
   let allSuggestions = await WordSuggestion.find(baseQuery).lean();
   const displayedLessThan3 = allSuggestions.filter(s => s.displayCount <= 3).length;
 
@@ -12,12 +12,12 @@ export async function getSuggestionsForUser(userId: string, firstLang: string, s
 
   if (allSuggestions.length >= MAX_MIN_DISPLAYED) {
     if (displayedLessThan3 <= MAX_MIN_DISPLAYED) {
-      generateSuggestionsInBackground(userId, firstLang, secondLang);
+      generateSuggestionsInBackground(userId, mainLang, translationLang);
     }
     return allSuggestions.map(cleanSuggestion);
   }
 
-  await generateSuggestionsInBackground(userId, firstLang, secondLang);
+  await generateSuggestionsInBackground(userId, mainLang, translationLang);
   let updatedSuggestions = await WordSuggestion.find(baseQuery).lean();
   return updatedSuggestions.map(cleanSuggestion);
 }

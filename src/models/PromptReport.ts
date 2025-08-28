@@ -13,8 +13,8 @@ const PromptReportSchema = new mongoose.Schema({
   model: { type: String, required: true },
   success: { type: Boolean, required: true },
   userId: { type: String, required: false },
-  firstLang: { type: String, required: false },
-  secondLang: { type: String, required: false },
+  mainLang: { type: String, required: false },
+  translationLang: { type: String, required: false },
   createdAt: { type: Date, default: Date.now }
 });
 

@@ -9,14 +9,14 @@ const nowUTC = () => new Date().toISOString();
 
 router.get('/', authenticate, async (req: Request, res: Response) => {
   const userId = req.userId!;
-  const { since, firstLang, secondLang } = req.query;
+  const { since, mainLang, translationLang } = req.query;
 
-  if (typeof firstLang !== 'string' || typeof secondLang !== 'string') {
-    return res.status(400).json({ error: 'firstLang and secondLang query params are required' });
+  if (typeof mainLang !== 'string' || typeof translationLang !== 'string') {
+    return res.status(400).json({ error: 'mainLang and translationLang query params are required' });
   }
 
   try {
-    const suggestions = await getSuggestionsForUser(userId, firstLang, secondLang, since as string | undefined);
+    const suggestions = await getSuggestionsForUser(userId, mainLang, translationLang, since as string | undefined);
     res.json(suggestions);
   } catch (err) {
     res.status(500).json({ error: 'Failed to get suggestions' });

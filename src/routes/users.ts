@@ -3,6 +3,7 @@ import User from '../models/User';
 import Session from '../models/Session';
 import Evaluation from '../models/Evaluation';
 import authenticate from "../middleware/auth";
+import Word from "../models/Word";
 
 const router = express.Router();
 
@@ -31,6 +32,19 @@ router.get('/users', authenticate, async (req: Request, res: Response) => {
 
     const evaluationCount = await Evaluation.countDocuments({ userId });
 
+    const latestEvaluation = await Evaluation.findOne({ userId }).sort({ date: -1 });
+
+    let translationLang = null;
+    let mainLang = null;
+
+    if (latestEvaluation) {
+      const word = await Word.findById(latestEvaluation.wordId);
+      if (word) {
+        mainLang = word.mainLang;
+        translationLang = word.translationLang;
+      }
+    }
+
     res.json({
       userId: user._id,
       provider: user.provider,
@@ -38,6 +52,8 @@ router.get('/users', authenticate, async (req: Request, res: Response) => {
       email: user.email,
       picture: user.picture,
       sessionModel: user.sessionModel,
+      translationLang,
+      mainLang,
       stats: {
         sessionCount,
         averageScore,

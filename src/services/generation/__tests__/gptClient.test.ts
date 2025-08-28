@@ -3,8 +3,8 @@ import { buildPrompt, parseResponseText, detectExcludedWords, fetchNewWordsSugge
 describe('buildPrompt', () => {
   test('generates prompt with defaults=false', () => {
     const prompt = buildPrompt({
-      firstLang: 'es',
-      secondLang: 'pl',
+      mainLang: 'es',
+      translationLang: 'pl',
       contextWords: ['libro', 'amigo'],
       defaults: false,
     });
@@ -15,8 +15,8 @@ describe('buildPrompt', () => {
 
   test('generates prompt with defaults=true and contextWords length >= 100', () => {
     const prompt = buildPrompt({
-      firstLang: 'en',
-      secondLang: 'fr',
+      mainLang: 'en',
+      translationLang: 'fr',
       contextWords: new Array(100).fill('word'),
       defaults: true,
     });
@@ -25,8 +25,8 @@ describe('buildPrompt', () => {
 
   test('generates prompt with defaults=true and contextWords length < 100', () => {
     const prompt = buildPrompt({
-      firstLang: 'en',
-      secondLang: 'fr',
+      mainLang: 'en',
+      translationLang: 'fr',
       contextWords: new Array(10).fill('word'),
       defaults: true,
     });

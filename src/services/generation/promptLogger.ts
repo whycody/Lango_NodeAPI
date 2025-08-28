@@ -12,8 +12,8 @@ interface PromptReportData {
   costUSD?: number;
   model: string;
   success: boolean;
-  firstLang?: string;
-  secondLang?: string;
+  mainLang?: string;
+  translationLang?: string;
   userId?: string;
 }
 

@@ -17,8 +17,8 @@ describe('getSuggestionsForUser', () => {
       _id: `id${i}`,
       displayCount: 3,
       userId: 'user1',
-      firstLang: 'en',
-      secondLang: 'pl',
+      mainLang: 'en',
+      translationLang: 'pl',
       skipped: false,
       updatedAt: new Date(),
     }));
@@ -33,8 +33,8 @@ describe('getSuggestionsForUser', () => {
     expect(WordSuggestion.find).toHaveBeenCalledWith({
       userId: 'user1',
       skipped: false,
-      firstLang: 'en',
-      secondLang: 'pl',
+      mainLang: 'en',
+      translationLang: 'pl',
     });
     expect(generateSpy).toHaveBeenCalledTimes(1);
     expect(result.length).toBe(MAX_MIN_DISPLAYED);
@@ -47,8 +47,8 @@ describe('getSuggestionsForUser', () => {
       _id: `id${i}`,
       displayCount: 5,
       userId: 'user1',
-      firstLang: 'en',
-      secondLang: 'pl',
+      mainLang: 'en',
+      translationLang: 'pl',
       skipped: false,
       updatedAt: new Date(),
     }));
@@ -74,8 +74,8 @@ describe('getSuggestionsForUser', () => {
       _id: `id${i}`,
       displayCount: 3,
       userId: 'user1',
-      firstLang: 'en',
-      secondLang: 'pl',
+      mainLang: 'en',
+      translationLang: 'pl',
       skipped: false,
       updatedAt: new Date(),
     }));
@@ -89,8 +89,8 @@ describe('getSuggestionsForUser', () => {
     expect(WordSuggestion.find).toHaveBeenCalledWith({
       userId: 'user1',
       skipped: false,
-      firstLang: 'en',
-      secondLang: 'pl',
+      mainLang: 'en',
+      translationLang: 'pl',
       updatedAt: { $gt: new Date(sinceDate) },
     });
   });

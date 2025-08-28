@@ -5,8 +5,8 @@ interface Word extends Document {
   userId: string;
   text: string;
   translation: string;
-  firstLang: string;
-  secondLang: string;
+  mainLang: string;
+  translationLang: string;
   source: string;
   addDate: Date;
   updatedAt: Date;
@@ -19,8 +19,8 @@ const wordSchema = new Schema<Word>({
   userId: { type: String, required: true },
   text: { type: String, required: true },
   translation: { type: String, required: true },
-  firstLang: { type: String, required: true },
-  secondLang: { type: String, required: true },
+  mainLang: { type: String, required: true },
+  translationLang: { type: String, required: true },
   source: { type: String, required: true },
   addDate: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },

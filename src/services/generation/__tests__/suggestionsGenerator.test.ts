@@ -16,8 +16,8 @@ jest.mock('../generationLock');
 
 describe('generateSuggestionsInBackground', () => {
   const userId = 'user1';
-  const firstLang = 'en';
-  const secondLang = 'pl';
+  const mainLang = 'en';
+  const translationLang = 'pl';
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -28,9 +28,9 @@ describe('generateSuggestionsInBackground', () => {
   it('should not start generation if it is already in progress', async () => {
     (isGenerationInProgress as jest.Mock).mockReturnValue(true);
 
-    await suggestionsGenerator.generateSuggestionsInBackground(userId, firstLang, secondLang);
+    await suggestionsGenerator.generateSuggestionsInBackground(userId, mainLang, translationLang);
 
-    expect(isGenerationInProgress).toHaveBeenCalledWith(`${userId}_${firstLang}_${secondLang}`);
+    expect(isGenerationInProgress).toHaveBeenCalledWith(`${userId}_${mainLang}_${translationLang}`);
     expect(startGeneration).not.toHaveBeenCalled();
     expect(endGeneration).not.toHaveBeenCalled();
   });
@@ -56,10 +56,10 @@ describe('generateSuggestionsInBackground', () => {
     });
     (logPromptReport as jest.Mock).mockResolvedValue(undefined);
 
-    await suggestionsGenerator.generateSuggestionsInBackground(userId, firstLang, secondLang);
+    await suggestionsGenerator.generateSuggestionsInBackground(userId, mainLang, translationLang);
 
-    expect(startGeneration).toHaveBeenCalledWith(`${userId}_${firstLang}_${secondLang}`);
-    expect(endGeneration).toHaveBeenCalledWith(`${userId}_${firstLang}_${secondLang}`);
+    expect(startGeneration).toHaveBeenCalledWith(`${userId}_${mainLang}_${translationLang}`);
+    expect(endGeneration).toHaveBeenCalledWith(`${userId}_${mainLang}_${translationLang}`);
   });
 
   it('should generate suggestions without user words - use defaults when unseen defaults exist', async () => {
@@ -85,9 +85,9 @@ describe('generateSuggestionsInBackground', () => {
     (fetchNewWordsSuggestions as jest.Mock).mockResolvedValue({ words: [], metadata: {} });
     (logPromptReport as jest.Mock).mockResolvedValue(undefined);
 
-    await suggestionsGenerator.generateSuggestionsInBackground(userId, firstLang, secondLang);
+    await suggestionsGenerator.generateSuggestionsInBackground(userId, mainLang, translationLang);
 
-    expect(Word.find).toHaveBeenCalledWith({ firstLang, secondLang, userId });
+    expect(Word.find).toHaveBeenCalledWith({ mainLang, translationLang, userId });
     expect(DefaultSuggestion.find).toHaveBeenCalled();
     expect(WordSuggestion.insertMany).toHaveBeenCalled();
   });
@@ -123,11 +123,11 @@ describe('generateSuggestionsInBackground', () => {
     (WordSuggestion.insertMany as jest.Mock).mockResolvedValue(undefined);
     (logPromptReport as jest.Mock).mockResolvedValue(undefined);
 
-    await suggestionsGenerator.generateSuggestionsInBackground(userId, firstLang, secondLang);
+    await suggestionsGenerator.generateSuggestionsInBackground(userId, mainLang, translationLang);
 
     expect(fetchNewWordsSuggestions).toHaveBeenCalledWith(
-      firstLang,
-      secondLang,
+      mainLang,
+      translationLang,
       [],
       true
     );
@@ -136,8 +136,8 @@ describe('generateSuggestionsInBackground', () => {
       expect.objectContaining({
         word: 'mela',
         translation: 'jabłko',
-        firstLang,
-        secondLang,
+        mainLang,
+        translationLang,
         userId,
       }),
     ]);
@@ -170,8 +170,8 @@ describe('generateSuggestionsInBackground', () => {
 
   it('should store only unique suggestions not present in words or suggestions', async () => {
     const userId = 'user1';
-    const firstLang = 'in';
-    const secondLang = 'pl';
+    const mainLang = 'in';
+    const translationLang = 'pl';
 
     const existingDefaults = [
       { word: 'hello', translation: 'cześć' },
@@ -210,7 +210,7 @@ describe('generateSuggestionsInBackground', () => {
     (WordSuggestion.insertMany as jest.Mock).mockResolvedValueOnce(null);
     (DefaultSuggestion.insertMany as jest.Mock).mockResolvedValueOnce(null);
 
-    await generateSuggestionsInBackground(userId, firstLang, secondLang);
+    await generateSuggestionsInBackground(userId, mainLang, translationLang);
 
     expect(WordSuggestion.insertMany).toHaveBeenCalledWith(expect.arrayContaining([
       expect.objectContaining({ word: 'newword', translation: 'nowe słowo' }),
@@ -219,8 +219,8 @@ describe('generateSuggestionsInBackground', () => {
 
   it('should call generateSuggestionsWithoutUserWords when user has no words', async () => {
     const userId = 'user1';
-    const firstLang = 'en';
-    const secondLang = 'pl';
+    const mainLang = 'en';
+    const translationLang = 'pl';
 
     (Word.find as jest.Mock).mockReturnValue({
       lean: jest.fn().mockResolvedValueOnce([]),
@@ -233,15 +233,15 @@ describe('generateSuggestionsInBackground', () => {
     });
     (WordSuggestion.insertMany as jest.Mock).mockResolvedValueOnce(null);
 
-    await generateSuggestionsInBackground(userId, firstLang, secondLang);
+    await generateSuggestionsInBackground(userId, mainLang, translationLang);
 
     expect(WordSuggestion.insertMany).toHaveBeenCalled();
   });
 
   it('should call generateSuggestionsWithUserWords when user has words', async () => {
     const userId = 'user1';
-    const firstLang = 'en';
-    const secondLang = 'pl';
+    const mainLang = 'en';
+    const translationLang = 'pl';
 
     const userWords = [
       { text: 'cat', addDate: new Date('2025-06-01') },
@@ -263,15 +263,15 @@ describe('generateSuggestionsInBackground', () => {
       metadata: {},
     });
 
-    await generateSuggestionsInBackground(userId, firstLang, secondLang);
+    await generateSuggestionsInBackground(userId, mainLang, translationLang);
 
-    expect(fetchNewWordsSuggestions).toHaveBeenCalledWith(firstLang, secondLang, ['apple', 'dog', 'cat']);
+    expect(fetchNewWordsSuggestions).toHaveBeenCalledWith(mainLang, translationLang, ['apple', 'dog', 'cat']);
   });
 
   it('should store prompt metadata in logPromptReport', async () => {
     const userId = 'user1';
-    const firstLang = 'en';
-    const secondLang = 'pl';
+    const mainLang = 'en';
+    const translationLang = 'pl';
 
     (Word.find as jest.Mock).mockReturnValue({
       lean: jest.fn().mockResolvedValue([]),
@@ -294,15 +294,15 @@ describe('generateSuggestionsInBackground', () => {
     (DefaultSuggestion.insertMany as jest.Mock).mockResolvedValueOnce(null);
     (logPromptReport as jest.Mock).mockResolvedValueOnce(null);
 
-    await generateSuggestionsInBackground(userId, firstLang, secondLang);
+    await generateSuggestionsInBackground(userId, mainLang, translationLang);
 
     expect(logPromptReport).toHaveBeenCalledWith(expect.objectContaining({
       promptTokens: 100,
       completionTokens: 50,
       addedWords: ['newword'],
       userId,
-      firstLang,
-      secondLang,
+      mainLang,
+      translationLang,
     }));
   });
 });

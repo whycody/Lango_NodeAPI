@@ -23,9 +23,9 @@ const langNames: Record<string, string> = {
   de: 'German',
 };
 
-export function buildPrompt({ firstLang, secondLang, contextWords, defaults }: {
-  firstLang: string;
-  secondLang: string;
+export function buildPrompt({ mainLang, translationLang, contextWords, defaults }: {
+  mainLang: string;
+  translationLang: string;
   contextWords: string[];
   defaults: boolean;
 }): string {
@@ -35,8 +35,8 @@ export function buildPrompt({ firstLang, secondLang, contextWords, defaults }: {
     .slice(0, 20)
     .join(';');
 
-  const fromLangName = langNames[firstLang];
-  const toLangName = langNames[secondLang];
+  const fromLangName = langNames[mainLang];
+  const toLangName = langNames[translationLang];
 
   const base = `Include a mix of **nouns, adjectives, and verbs**. If the language has specific definite articles that are part of the word itself (like "el", "la", "los", "las" in Spanish), include them as part of the word. However, if the language uses a universal article (like "the" in English) that is not attached to the word itself, do not include it. For example: el libro - book; el amigo - friend; la mochila - backpack. Return ONLY a plain list in the format: word - translation; without spaces after semicolons, no new lines, no extra text.`;
 
@@ -66,8 +66,8 @@ export function detectExcludedWords(words: string[], excludedWords: string[]): b
 }
 
 export async function fetchNewWordsSuggestions(
-  firstLang: string,
-  secondLang: string,
+  mainLang: string,
+  translationLang: string,
   contextWords: string[],
   defaults = false,
   model = "gpt-4o-mini"
@@ -76,7 +76,7 @@ export async function fetchNewWordsSuggestions(
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
   if (!OPENAI_API_KEY) throw new Error("Missing OpenAI API key");
 
-  const prompt = buildPrompt({ firstLang, secondLang, contextWords, defaults });
+  const prompt = buildPrompt({ mainLang: mainLang, translationLang: translationLang, contextWords, defaults });
 
   console.log("Calling OpenAI API with prompt:", prompt);
 

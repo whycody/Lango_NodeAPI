@@ -5,8 +5,8 @@ interface Suggestion extends Document {
   userId: string;
   word: string;
   translation: string;
-  firstLang: string;
-  secondLang: string;
+  mainLang: string;
+  translationLang: string;
   displayCount: number;
   skipped: boolean;
   updatedAt: Date;
@@ -17,8 +17,8 @@ const suggestionSchema = new Schema<Suggestion>({
   userId: { type: String, required: true },
   word: { type: String, required: true },
   translation: { type: String, required: true },
-  firstLang: { type: String, required: true },
-  secondLang: { type: String, required: true },
+  mainLang: { type: String, required: true },
+  translationLang: { type: String, required: true },
   displayCount: { type: Number, default: 0 },
   skipped: { type: Boolean, default: false },
   updatedAt: { type: Date, default: Date.now },
