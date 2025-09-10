@@ -12,6 +12,7 @@ interface Word extends Document {
   updatedAt: Date;
   active: boolean;
   removed: boolean;
+  lemmas?: string[];
 }
 
 const wordSchema = new Schema<Word>({
@@ -26,6 +27,7 @@ const wordSchema = new Schema<Word>({
   updatedAt: { type: Date, default: Date.now },
   active: { type: Boolean, default: true },
   removed: { type: Boolean, default: false },
+  lemmas: { type: [String], select: false },
 }, {
   timestamps: { updatedAt: 'updatedAt', createdAt: false },
 });

@@ -1,0 +1,32 @@
+import { Schema, model, Document } from 'mongoose';
+import { LEMMA_TYPES, LemmaType } from "../types/LemmaType";
+import { Lang, LANGS } from "../types/Lang";
+
+export interface Lemma extends Document {
+  lemma: string;
+  type: LemmaType;
+  lang: Lang;
+  prefix: string;
+  add_count: number;
+  skip_count: number;
+  freq: number;
+  freq_z: number;
+}
+
+const lemmaSchema = new Schema<Lemma>(
+  {
+    lemma: { type: String, required: true },
+    type: { type: String, required: true, enum: LEMMA_TYPES },
+    lang: { type: String, required: true, enum: LANGS },
+    prefix: { type: String, default: '' },
+    add_count: { type: Number, default: 0 },
+    skip_count: { type: Number, default: 0 },
+    freq: { type: Number, required: true },
+    freq_z: { type: Number, required: true },
+  },
+  { timestamps: { createdAt: 'addDate', updatedAt: false } }
+);
+
+lemmaSchema.index({ lemma: 1, lang: 1 }, { unique: true });
+
+export default model<Lemma>('Lemma', lemmaSchema, 'lemmas');
