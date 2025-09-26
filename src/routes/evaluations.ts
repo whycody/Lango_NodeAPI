@@ -1,7 +1,6 @@
-import { Router } from 'express';
+import { Request, Response, Router } from 'express';
 import Evaluation from '../models/Evaluation';
 import authenticate from '../middleware/auth';
-import { Request, Response } from 'express';
 
 const router = Router();
 

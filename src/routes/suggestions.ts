@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Request, Response, Router } from 'express';
 import authenticate from '../middleware/auth';
 import { getSuggestionsForUser } from '../services/suggestions/suggestionService';
 import WordSuggestion from "../models/Suggestion";

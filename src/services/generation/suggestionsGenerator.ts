@@ -42,14 +42,14 @@ async function generateSuggestionsWithoutUserWords(userId: string, mainLang: str
   }
 }
 
-async function createUserSuggestionsFromDefaults(defaults: any[], userId: string, mainLang: string, trasnlationLang: string) {
+async function createUserSuggestionsFromDefaults(defaults: any[], userId: string, mainLang: string, translationLang: string) {
   const newSuggestions = defaults.slice(0, 30).map(d => ({
     _id: uuidv4(),
     userId,
     word: d.word!,
     translation: d.translation!,
     mainLang,
-    trasnlationLang,
+    translationLang,
     displayCount: 0,
     skipped: false,
     updatedAt: new Date(),

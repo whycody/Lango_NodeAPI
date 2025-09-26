@@ -1,11 +1,11 @@
 import * as suggestionsGenerator from '../suggestionsGenerator';
+import { generateSuggestionsInBackground } from '../suggestionsGenerator';
 import Word from '../../../models/Word';
 import WordSuggestion from '../../../models/Suggestion';
 import DefaultSuggestion from '../../../models/DefaultSuggestion';
 import { fetchNewWordsSuggestions } from '../gptClient';
 import { logPromptReport } from '../promptLogger';
-import { isGenerationInProgress, startGeneration, endGeneration } from '../generationLock';
-import { generateSuggestionsInBackground } from "../suggestionsGenerator";
+import { endGeneration, isGenerationInProgress, startGeneration } from '../generationLock';
 
 jest.mock('../../../models/Word');
 jest.mock('../../../models/Suggestion');

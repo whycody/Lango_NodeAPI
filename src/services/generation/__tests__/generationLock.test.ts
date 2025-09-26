@@ -1,4 +1,4 @@
-import { isGenerationInProgress, startGeneration, endGeneration } from '../generationLock';
+import { endGeneration, isGenerationInProgress, startGeneration } from '../generationLock';
 
 describe('generationLock', () => {
   const testKey = 'user1_en_pl';

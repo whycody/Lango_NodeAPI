@@ -1,11 +1,11 @@
-import { Schema, model, Document } from 'mongoose';
-import { LEMMA_TYPES, LemmaType } from "../types/LemmaType";
-import { Lang, LANGS } from "../types/Lang";
+import { Document, model, Schema } from 'mongoose';
+import { LemmaType, LemmaTypeValue } from "../constants/lemmasTypes";
+import { LanguageCode, LanguageCodeValue } from "../constants/languageCodes";
 
 export interface Lemma extends Document {
   lemma: string;
-  type: LemmaType;
-  lang: Lang;
+  type: LemmaTypeValue;
+  lang: LanguageCodeValue;
   prefix: string;
   add_count: number;
   skip_count: number;
@@ -16,8 +16,8 @@ export interface Lemma extends Document {
 const lemmaSchema = new Schema<Lemma>(
   {
     lemma: { type: String, required: true },
-    type: { type: String, required: true, enum: LEMMA_TYPES },
-    lang: { type: String, required: true, enum: LANGS },
+    type: { type: String, required: true, enum: Object.values(LemmaType) },
+    lang: { type: String, required: true, enum: Object.values(LanguageCode) },
     prefix: { type: String, default: '' },
     add_count: { type: Number, default: 0 },
     skip_count: { type: Number, default: 0 },

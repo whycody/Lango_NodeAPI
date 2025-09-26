@@ -1,4 +1,6 @@
-import { buildPrompt, parseResponseText, detectExcludedWords, fetchNewWordsSuggestions } from '../gptClient';
+import { buildPrompt, detectExcludedWords, fetchNewWordsSuggestions, parseResponseText } from '../gptClient';
+// fetch mock setup for fetchNewWordsSuggestions
+import fetch from 'node-fetch';
 
 describe('buildPrompt', () => {
   test('generates prompt with defaults=false', () => {
@@ -69,8 +71,6 @@ describe('detectExcludedWords', () => {
   });
 });
 
-// fetch mock setup for fetchNewWordsSuggestions
-import fetch from 'node-fetch';
 jest.mock('node-fetch', () => jest.fn());
 
 describe('fetchNewWordsSuggestions', () => {
