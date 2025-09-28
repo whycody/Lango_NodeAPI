@@ -11,11 +11,11 @@ const lemmaTranslationSchema = new Schema<LemmaTranslation>(
   {
     lemmaId: { type: Schema.Types.ObjectId, ref: 'Lemma', required: true },
     translationLang: { type: String, required: true, enum: Object.values(LanguageCode) },
-    translation: { type: String, required: true },
+    translation: { type: String, nullable: true, required: true },
   },
   { timestamps: { createdAt: 'addDate', updatedAt: 'updatedAt' } }
 );
 
 lemmaTranslationSchema.index({ lemmaId: 1, translationLang: 1 }, { unique: true });
 
-export default model<LemmaTranslation>('LemmaTranslation', lemmaTranslationSchema, 'lemma_translations');
+export default model<LemmaTranslation>('LemmaTranslation', lemmaTranslationSchema, 'lemmas_translations');

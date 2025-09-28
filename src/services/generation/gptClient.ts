@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
+import { WordPair } from "../../types/WordPair";
 
-type WordPair = { word: string; translation: string };
-type FetchMetadata = {
+type GPTReport = {
   prompt: string;
   words: string[];
   excludedWords: string[];
@@ -71,7 +71,7 @@ export async function fetchNewWordsSuggestions(
   contextWords: string[],
   defaults = false,
   model = "gpt-4o-mini"
-): Promise<{ words: WordPair[]; metadata: FetchMetadata }> {
+): Promise<{ words: WordPair[]; metadata: GPTReport }> {
 
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
   if (!OPENAI_API_KEY) throw new Error("Missing OpenAI API key");
