@@ -15,7 +15,7 @@ export async function getSuggestionsForUser(userId: string, mainLang: LanguageCo
     if (displayedLessThan3 <= MAX_MIN_DISPLAYED) {
       generateSuggestionsInBackground(userId, mainLang, translationLang);
     }
-    return allSuggestions.map(cleanSuggestion);
+    return allSuggestions.filter(s => !since || new Date(s.updatedAt) > new Date(since)).map(cleanSuggestion);
   }
 
   await generateSuggestionsInBackground(userId, mainLang, translationLang);
