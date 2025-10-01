@@ -1,6 +1,6 @@
 import { Document, model, Schema } from 'mongoose';
 import jwt from 'jsonwebtoken';
-import { SessionMode, SessionModeValue } from "../constants/sessionModes";
+import { SessionMode, SessionModeValue } from "../../constants/sessionModes";
 
 interface RefreshToken {
   deviceId: string;

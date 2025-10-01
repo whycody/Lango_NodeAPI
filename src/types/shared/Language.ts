@@ -1,5 +1,5 @@
-import { BaseWord } from "../constants/baseWords";
-import { LanguageCodeValue } from "../constants/languageCodes";
+import { BaseWord } from "../../constants/baseWords";
+import { LanguageCodeValue } from "../../constants/languageCodes";
 
 export type Language = {
   languageCode: LanguageCodeValue,

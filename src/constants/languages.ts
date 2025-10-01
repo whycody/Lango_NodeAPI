@@ -1,4 +1,4 @@
-import { Languages } from "../types/Language";
+import { Languages } from "../types/shared/Language";
 import { BaseWord } from "./baseWords";
 
 export const languages: Languages = {
@@ -18,7 +18,7 @@ export const languages: Languages = {
   it: {
     languageCode: "it",
     languageName: "Italian",
-    definedArticles: ["il", "lo", "la"],
+    definedArticles: ["il", "lo", "la", "l'", "i", "gli", "le"],
     exampleTranslations: {
       [BaseWord.Dog]: "il cane",
       [BaseWord.ToSing]: "cantare",
@@ -44,7 +44,7 @@ export const languages: Languages = {
   es: {
     languageCode: "es",
     languageName: "Spanish",
-    definedArticles: ["el", "la"],
+    definedArticles: ["el", "la", "las", "los"],
     exampleTranslations: {
       [BaseWord.Dog]: "el perro",
       [BaseWord.ToSing]: "cantar",

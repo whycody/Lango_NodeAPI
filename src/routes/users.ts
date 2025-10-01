@@ -1,9 +1,9 @@
 import express, { Request, Response } from 'express';
-import User from '../models/User';
-import Session from '../models/Session';
-import Evaluation from '../models/Evaluation';
+import User from '../models/core/User';
+import Session from '../models/core/Session';
+import Evaluation from '../models/core/Evaluation';
 import authenticate from "../middleware/auth";
-import Word from "../models/Word";
+import Word from "../models/core/Word";
 
 const router = express.Router();
 

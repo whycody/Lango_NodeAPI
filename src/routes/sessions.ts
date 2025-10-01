@@ -1,5 +1,5 @@
 import { Request, Response, Router } from 'express';
-import Session from '../models/Session';
+import Session from '../models/core/Session';
 import authenticate from '../middleware/auth';
 
 const router = Router();

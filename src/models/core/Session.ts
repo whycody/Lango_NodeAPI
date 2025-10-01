@@ -1,5 +1,5 @@
 import { Document, model, Schema } from 'mongoose';
-import { SessionMode, SessionModeValue } from "../constants/sessionModes";
+import { SessionMode, SessionModeValue } from "../../constants/sessionModes";
 
 interface Session extends Document {
   id: string;

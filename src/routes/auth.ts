@@ -1,6 +1,6 @@
 import { Request, Response, Router } from 'express';
 import axios from 'axios';
-import User from '../models/User';
+import User from '../models/core/User';
 import jwt from 'jsonwebtoken';
 import authenticate from "../middleware/auth";
 

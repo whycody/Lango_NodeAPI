@@ -1,7 +1,8 @@
 import { Request, Response, Router } from 'express';
 import authenticate from '../middleware/auth';
-import { getSuggestionsForUser } from '../services/suggestions/suggestionService';
-import WordSuggestion from "../models/Suggestion";
+import { getSuggestionsForUser } from '../services/suggestions/getUserSuggestions';
+import { isLanguageCodeValue } from "../constants/languageCodes";
+import Suggestion from "../models/core/Suggestion";
 
 const router = Router();
 
@@ -11,8 +12,8 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
   const userId = req.userId!;
   const { since, mainLang, translationLang } = req.query;
 
-  if (typeof mainLang !== 'string' || typeof translationLang !== 'string') {
-    return res.status(400).json({ error: 'mainLang and translationLang query params are required' });
+  if (!isLanguageCodeValue(mainLang) || !isLanguageCodeValue(translationLang)) {
+    return res.status(400).json({ error: 'mainLang and translationLang must be valid language codes' });
   }
 
   try {
@@ -30,13 +31,13 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
 
   for (const suggestion of clientSuggestions) {
     try {
-      const existingSuggestion = await WordSuggestion.findOne({ _id: suggestion.id, userId });
+      const existingSuggestion = await Suggestion.findOne({ _id: suggestion.id, userId });
 
       if (existingSuggestion && new Date(suggestion.locallyUpdatedAt) < new Date(existingSuggestion.updatedAt)) {
         continue;
       }
 
-      const updatedSuggestion = await WordSuggestion.findOneAndUpdate(
+      const updatedSuggestion = await Suggestion.findOneAndUpdate(
         { _id: suggestion.id, userId },
         { $set: { ...suggestion, updatedAt: nowUTC() } },
         { upsert: true, new: true }

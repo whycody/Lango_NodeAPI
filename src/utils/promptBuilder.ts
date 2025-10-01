@@ -18,21 +18,22 @@ export const buildTranslatingWordsPrompt = (mainLangCode: LanguageCodeValue, tra
     .join(";");
 
   let base = `Translate provided ${mainLang.languageName} words into ${translationLang.languageName}. `;
-  base += `If a word is unsuitable for a language-learning flashcard (e.g., a proper name, misspelling, rare/archaic term, or overly technical word), skip it. `;
 
-  if (bothLangsHaveArticles) {
-    base += `Include defined articles specified both for ${mainLang.languageName} (${mainLang.definedArticles}) and ${translationLang.languageName} (${translationLang.definedArticles}) languages. `;
-  } else if (mainLangHasArticles) {
-    base += `Include defined articles specified for ${mainLang.languageName} language: ${mainLang.definedArticles}. `;
-  } else if (translationLangHasArticles) {
-    base += `Include defined articles specified for ${translationLang.languageName} language: ${translationLang.definedArticles}. `
-  }
+  base += `Skip proper names, misspellings, rare or very archaic terms, or overly technical words. `;
 
   base += `Example output: ${translationsMap}. `
 
   base += `Translate provided words: ${words}. `;
 
-  base += `Return ONLY a plain list in the format: word-translation; without spaces after semicolons, no new lines, no extra text.`;
+  base += `Return ONLY a plain list in the format: word-translation; without spaces after semicolons, no new lines, no extra text. `;
+
+  if (bothLangsHaveArticles) {
+    base += `For substantives include correct articles specified both for ${mainLang.languageName} (${mainLang.definedArticles}) and ${translationLang.languageName} (${translationLang.definedArticles}) languages. `;
+  } else if (mainLangHasArticles) {
+    base += `For substantives include correct articles specified for ${mainLang.languageName} language: ${mainLang.definedArticles}. `;
+  } else if (translationLangHasArticles) {
+    base += `For substantives include correct articles specified for ${translationLang.languageName} language: ${translationLang.definedArticles}. `
+  }
 
   return base;
 }

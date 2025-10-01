@@ -1,11 +1,11 @@
 import request from 'supertest';
 import app from '../../app';
 import axios from 'axios';
-import User from '../../models/User';
+import User from '../../models/core/User';
 import jwt from 'jsonwebtoken';
 
 jest.mock('axios');
-jest.mock('../../models/User');
+jest.mock('../../models/core/User');
 jest.mock('jsonwebtoken', () => ({
   ...jest.requireActual('jsonwebtoken'),
   verify: jest.fn(() => ({ userId: '123' }))

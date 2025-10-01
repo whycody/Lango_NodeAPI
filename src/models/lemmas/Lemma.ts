@@ -1,6 +1,6 @@
 import { Document, model, Schema } from 'mongoose';
-import { LemmaType, LemmaTypeValue } from "../constants/lemmasTypes";
-import { LanguageCode, LanguageCodeValue } from "../constants/languageCodes";
+import { LemmaType, LemmaTypeValue } from "../../constants/lemmasTypes";
+import { LanguageCode, LanguageCodeValue } from "../../constants/languageCodes";
 
 export interface Lemma extends Document {
   lemma: string;
@@ -11,6 +11,8 @@ export interface Lemma extends Document {
   skip_count: number;
   freq: number;
   freq_z: number;
+  addDate: Date;
+  updatedAt: Date;
 }
 
 const lemmaSchema = new Schema<Lemma>(
@@ -24,7 +26,9 @@ const lemmaSchema = new Schema<Lemma>(
     freq: { type: Number, required: true },
     freq_z: { type: Number, required: true },
   },
-  { timestamps: { createdAt: 'addDate', updatedAt: false } }
+  {
+    timestamps: { createdAt: 'addDate', updatedAt: 'updatedAt' }
+  }
 );
 
 lemmaSchema.index({ lemma: 1, lang: 1 }, { unique: true });

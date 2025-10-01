@@ -1,8 +1,9 @@
-import { WordPair } from "./WordPair";
-import { LanguageCodeValue } from "../constants/languageCodes";
+import { WordPair } from "../shared/WordPair";
+import { LanguageCodeValue } from "../../constants/languageCodes";
 
-export type FetchMetadata = {
+export type GPTReportAttr = {
   prompt: string;
+  response: string;
   words: WordPair[];
   mainLang: LanguageCodeValue;
   translationLang: LanguageCodeValue;

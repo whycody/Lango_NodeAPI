@@ -1,8 +1,8 @@
-import { getSuggestionsForUser } from '../suggestionService';
-import WordSuggestion from '../../../models/Suggestion';
+import { getSuggestionsForUser } from '../getUserSuggestions';
+import WordSuggestion from '../../../models/core/Suggestion';
 import * as generationModule from '../../generation/suggestionsGenerator';
 
-jest.mock('../../../models/Suggestion');
+jest.mock('../../../models/core/Suggestion');
 jest.mock('../../generation/suggestionsGenerator');
 
 const MAX_MIN_DISPLAYED = 20;

@@ -1,6 +1,7 @@
 import { Request, Response, Router } from 'express';
-import Word from '../models/Word';
+import Word from '../models/core/Word';
 import authenticate from '../middleware/auth';
+import { Types } from "mongoose";
 
 const router = Router();
 
@@ -41,7 +42,7 @@ router.post('/words/sync', authenticate, async (req: Request, res: Response) => 
       }
 
       const updatedWord = await Word.findOneAndUpdate(
-        { _id: word.id, userId },
+        { _id: word.id, userId: new Types.ObjectId(userId) },
         { $set: { ...word, updatedAt: nowUTC() } },
         { upsert: true, new: true }
       );

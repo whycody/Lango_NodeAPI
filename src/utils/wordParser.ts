@@ -1,4 +1,4 @@
-import { WordPair } from "../types/WordPair";
+import { WordPair } from "../types/shared/WordPair";
 
 interface ParseOptions {
   pairSeparator?: string;
@@ -26,5 +26,5 @@ export function parseWordPairs(text: string, options: ParseOptions = {}): WordPa
         translation = translation.replace(/\.$/, '');
       }
       return { word, translation };
-    }).filter((w): w is WordPair => w !== null);
+    }).filter((w): w is NonNullable<typeof w> => w !== null);
 }

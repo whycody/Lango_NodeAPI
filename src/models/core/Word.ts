@@ -1,5 +1,5 @@
 import { Document, model, Schema } from 'mongoose';
-import { LanguageCode, LanguageCodeValue } from "../constants/languageCodes";
+import { LanguageCode, LanguageCodeValue } from "../../constants/languageCodes";
 
 interface Word extends Document {
   id: string;
