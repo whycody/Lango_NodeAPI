@@ -1,14 +1,9 @@
 import { Document, model, Schema } from 'mongoose';
-import { LemmaType, LemmaTypeValue } from "../../constants/lemmasTypes";
-import { LanguageCode, LanguageCodeValue } from "../../constants/languageCodes";
+import { LemmaType } from "../../constants/lemmasTypes";
+import { LanguageCode } from "../../constants/languageCodes";
+import { LemmaAttr } from "../../types/models/LemmaAttr";
 
-export interface Lemma extends Document {
-  lemma: string;
-  type: LemmaTypeValue;
-  lang: LanguageCodeValue;
-  prefix: string;
-  freq: number;
-  freq_z: number;
+export interface Lemma extends Document, LemmaAttr {
   addDate: Date;
   updatedAt: Date;
 }

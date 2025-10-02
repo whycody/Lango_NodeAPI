@@ -22,7 +22,7 @@ export async function getLemmasIdsToTranslate(
 
   if (translatedIds.size === limit) return []
 
-  const additionalNeeded = Math.max(limit - translatedIds.size, 0)
+  const additionalNeeded = Math.max(limit - untranslatedIds.length, 0)
 
   let additionalIds: string[] = []
   if (additionalNeeded > 0) {

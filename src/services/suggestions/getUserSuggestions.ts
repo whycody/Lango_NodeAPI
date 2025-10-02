@@ -5,13 +5,14 @@ import Suggestion from "../../models/core/Suggestion";
 const MAX_MIN_DISPLAYED = 20;
 
 export async function getSuggestionsForUser(userId: string, mainLang: LanguageCodeValue, translationLang: LanguageCodeValue, since?: string) {
-  const baseQuery: any = { userId, skipped: false, added: false, mainLang, translationLang };
-  let allSuggestions = await Suggestion.find(baseQuery).lean();
-  const displayedLessThan3 = allSuggestions.filter(s => (s.displayCount ?? 0) <= 3).length;
+  const baseQuery: any = { userId, mainLang, translationLang };
+  const allSuggestions = await Suggestion.find(baseQuery).lean();
+  const activeSuggestions = allSuggestions.filter(s => !s.skipped && !s.added);
+  const displayedLessThan3 = activeSuggestions.filter(s => s.displayCount <= 3).length;
 
   if (since) baseQuery.updatedAt = { $gt: new Date(since) };
 
-  if (allSuggestions.length >= MAX_MIN_DISPLAYED) {
+  if (activeSuggestions.length >= MAX_MIN_DISPLAYED) {
     if (displayedLessThan3 <= MAX_MIN_DISPLAYED) {
       generateSuggestionsInBackground(userId, mainLang, translationLang);
     }
