@@ -5,7 +5,7 @@ import Suggestion from "../../models/core/Suggestion";
 const MAX_MIN_DISPLAYED = 20;
 
 export async function getSuggestionsForUser(userId: string, mainLang: LanguageCodeValue, translationLang: LanguageCodeValue, since?: string) {
-  const baseQuery: any = { userId, skipped: false, mainLang, translationLang };
+  const baseQuery: any = { userId, skipped: false, added: false, mainLang, translationLang };
   let allSuggestions = await Suggestion.find(baseQuery).lean();
   const displayedLessThan3 = allSuggestions.filter(s => (s.displayCount ?? 0) <= 3).length;
 
@@ -24,5 +24,5 @@ export async function getSuggestionsForUser(userId: string, mainLang: LanguageCo
 }
 
 function cleanSuggestion(s: any) {
-  return { ...s, id: s._id, _id: undefined, __v: undefined, lemma: undefined };
+  return { ...s, id: s._id, _id: undefined, __v: undefined, lemma: undefined, translationId: null };
 }

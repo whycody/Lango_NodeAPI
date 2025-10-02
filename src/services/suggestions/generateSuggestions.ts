@@ -15,6 +15,8 @@ import { SuggestionAttr } from "../../types/models/SuggestionAttr";
 import { SuggestionsRepository } from "../../types/api/SuggestionsRepository";
 import { withGenerationLock } from "./utils/withGenerationLock";
 import { mapArrayToLemmaTranslations } from "./utils/mapToLemmaTranslation";
+import { createSuggestion } from "./utils/fabrics/createSuggestion";
+import { createLemmaTranslation } from "./utils/fabrics/createLemmaTranslation";
 
 export const generateSuggestionsInBackground = async (userId: string, mainLang: LanguageCodeValue, translationLang: LanguageCodeValue) => {
   const key = `${userId}_${mainLang}_${translationLang}`;
@@ -43,16 +45,15 @@ export const generateSuggestionsInBackground = async (userId: string, mainLang: 
 
     const suggestionsToInsert: SuggestionAttr[] = suggestedLemmas
       .filter(l => translationMap.has(l._id.toString()))
-      .map(l => ({
+      .map(l => (createSuggestion({
         userId,
         lemma: l.lemma,
+        lemmaId: l._id.toString(),
         word: l.prefix ? `${l.prefix}${l.lemma}` : l.lemma,
         translation: translationMap.get(l._id.toString()) || "",
         mainLang,
         translationLang,
-        displayCount: 0,
-        skipped: false,
-      }));
+      })));
 
     let translationsToInsert: LemmaTranslationAttr[] = [];
     let lemmasToUpdate: LemmaUpdate[] = [];
@@ -62,9 +63,7 @@ export const generateSuggestionsInBackground = async (userId: string, mainLang: 
       const { wordPairs, fetchMetadata } = await translateWords(mainLang, translationLang, wordsToTranslate);
 
       const matchedPairs = matchWordPairsToLemmas(wordPairs, lemmasToTranslate, mainLang);
-      const unmatchedLemmas = lemmasToTranslate.filter(
-        l => !matchedPairs.some(pair => pair.lemmaId === l._id.toString())
-      );
+      const unmatchedLemmas = lemmasToTranslate.filter(l => !matchedPairs.some(pair => pair.lemmaId === l._id.toString()));
 
       await saveGPTReport(fetchMetadata);
 
@@ -73,11 +72,10 @@ export const generateSuggestionsInBackground = async (userId: string, mainLang: 
       suggestionsToInsert.push(...prepared.suggestionsToInsert);
       lemmasToUpdate.push(...prepared.lemmasToUpdate);
 
-      translationsToInsert.push(...unmatchedLemmas.map(l => ({
+      translationsToInsert.push(...unmatchedLemmas.map(l => (createLemmaTranslation({
         lemmaId: l._id.toString(),
-        translation: null,
         translationLang,
-      })));
+      }))));
     }
 
     const insertedTranslations = translationsToInsert.map(t => ({
@@ -124,23 +122,22 @@ const prepareInsertData = (
       lemmasToUpdate.push({ _id: pair.lemmaId, lemma: pair.lemma, prefix: pair.article });
     }
 
-    translationsToInsert.push({
+    translationsToInsert.push(createLemmaTranslation({
       lemmaId: pair.lemmaId,
       translation: pair.translation,
       translationLang,
-    });
+    }));
 
     if (suggestedLemmaIds.includes(pair.lemmaId)) {
-      suggestionsToInsert.push({
+      suggestionsToInsert.push(createSuggestion({
         userId,
         lemma: pair.lemma,
+        lemmaId: pair.lemmaId,
         word: pair.article ? `${pair.article}${pair.lemma}` : pair.lemma,
         translation: pair.translation,
         mainLang,
         translationLang,
-        displayCount: 0,
-        skipped: false,
-      });
+      }));
     }
   }
 

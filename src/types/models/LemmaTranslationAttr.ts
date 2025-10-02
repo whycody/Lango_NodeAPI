@@ -5,4 +5,6 @@ export type LemmaTranslationAttr = {
   lemmaId: Types.ObjectId | string;
   translationLang: LanguageCodeValue;
   translation: string | null;
+  addCount: number;
+  skipCount: number;
 }

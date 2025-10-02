@@ -7,8 +7,6 @@ export interface Lemma extends Document {
   type: LemmaTypeValue;
   lang: LanguageCodeValue;
   prefix: string;
-  add_count: number;
-  skip_count: number;
   freq: number;
   freq_z: number;
   addDate: Date;
@@ -21,8 +19,6 @@ const lemmaSchema = new Schema<Lemma>(
     type: { type: String, required: true, enum: Object.values(LemmaType) },
     lang: { type: String, required: true, enum: Object.values(LanguageCode) },
     prefix: { type: String, default: '' },
-    add_count: { type: Number, default: 0 },
-    skip_count: { type: Number, default: 0 },
     freq: { type: Number, required: true },
     freq_z: { type: Number, required: true },
   },

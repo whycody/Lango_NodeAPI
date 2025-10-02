@@ -3,6 +3,8 @@ import authenticate from '../middleware/auth';
 import { getSuggestionsForUser } from '../services/suggestions/getUserSuggestions';
 import { isLanguageCodeValue } from "../constants/languageCodes";
 import Suggestion from "../models/core/Suggestion";
+import { SuggestionAttr } from "../types/models/SuggestionAttr";
+import { updateLemmaTranslationCounts } from "../services/utils/translationService";
 
 const router = Router();
 
@@ -26,7 +28,7 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
 
 router.post('/sync', authenticate, async (req: Request, res: Response) => {
   const userId = req.userId ?? '';
-  const clientSuggestions = req.body;
+  const clientSuggestions: (SuggestionAttr & { id: string, locallyUpdatedAt: number })[] = req.body;
   const syncedSuggestions = [];
 
   for (const suggestion of clientSuggestions) {
@@ -35,6 +37,10 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
 
       if (existingSuggestion && new Date(suggestion.locallyUpdatedAt) < new Date(existingSuggestion.updatedAt)) {
         continue;
+      }
+
+      if (existingSuggestion && (suggestion.added !== existingSuggestion?.added || suggestion.skipped !== existingSuggestion?.skipped)) {
+        await updateLemmaTranslationCounts(existingSuggestion, suggestion);
       }
 
       const updatedSuggestion = await Suggestion.findOneAndUpdate(
