@@ -17,6 +17,7 @@ import { withGenerationLock } from "./utils/withGenerationLock";
 import { mapArrayToLemmaTranslations } from "./utils/mapToLemmaTranslation";
 import { createSuggestion } from "./utils/fabrics/createSuggestion";
 import { createLemmaTranslation } from "./utils/fabrics/createLemmaTranslation";
+import { LemmaAttrWithId } from "../../types/models/LemmaAttr";
 
 export const generateSuggestionsInBackground = async (userId: string, mainLang: LanguageCodeValue, translationLang: LanguageCodeValue) => {
   const key = `${userId}_${mainLang}_${translationLang}`;
@@ -33,7 +34,7 @@ export const generateSuggestionsInBackground = async (userId: string, mainLang: 
     const { suggested_lemmas_ids: suggestedLemmasIds, median_freq: medianFreq } = suggestionsResponse;
     const suggestedLemmas = await Lemma.find({ _id: { $in: suggestedLemmasIds } }).lean();
     const lemmasIdsToTranslate = await getLemmasIdsToTranslate(suggestedLemmasIds, mainLang, translationLang, medianFreq, 30);
-    const lemmasToTranslate = await Lemma.find({ _id: { $in: lemmasIdsToTranslate } }).lean();
+    const lemmasToTranslate = await Lemma.find({ _id: { $in: lemmasIdsToTranslate } }).lean<LemmaAttrWithId[]>();
 
     const translatedLemmasTranslations = await LemmaTranslation.find({
       lemmaId: { $in: suggestedLemmasIds },
@@ -118,8 +119,8 @@ const prepareInsertData = (
   const lemmasToUpdate: LemmaUpdate[] = [];
 
   for (const pair of matchedPairs) {
-    if (pair.article) {
-      lemmasToUpdate.push({ _id: pair.lemmaId, lemma: pair.lemma, prefix: pair.article });
+    if (pair.prefix) {
+      lemmasToUpdate.push({ _id: pair.lemmaId, lemma: pair.lemma, prefix: pair.prefix });
     }
 
     translationsToInsert.push(createLemmaTranslation({
@@ -133,7 +134,7 @@ const prepareInsertData = (
         userId,
         lemma: pair.lemma,
         lemmaId: pair.lemmaId,
-        word: pair.article ? `${pair.article}${pair.lemma}` : pair.lemma,
+        word: pair.prefix ? `${pair.prefix}${pair.lemma}` : pair.lemma,
         translation: pair.translation,
         mainLang,
         translationLang,

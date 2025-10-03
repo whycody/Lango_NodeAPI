@@ -1,45 +1,23 @@
-import { WordPair } from "../../../types/shared/WordPair";
-import { LanguageCodeValue } from "../../../constants/languageCodes";
-import { languages } from "../../../constants/languages";
-import { MatchPair } from "../../../types/shared/MatchPair";
+import { WordPair } from "../../../types/shared/WordPair"
+import { LanguageCodeValue } from "../../../constants/languageCodes"
+import { languages } from "../../../constants/languages"
+import { MatchPair } from "../../../types/shared/MatchPair"
+import { extractPrefix } from "../../utils/extractPrefix";
+import { normalizeWord } from "../../utils/normalizeWord";
+import { LemmaAttrWithId } from "../../../types/models/LemmaAttr";
 
-export function matchWordPairsToLemmas(wordPairs: WordPair[], lemmas: any[], mainLangCode: LanguageCodeValue) {
+export const matchWordPairsToLemmas = (wordPairs: WordPair[], lemmas: LemmaAttrWithId[], mainLangCode: LanguageCodeValue) => {
   const mainLanguage = languages[mainLangCode];
   const matchedPairs: MatchPair[] = [];
 
   const articles = mainLanguage.definedArticles || [];
 
   for (const wp of wordPairs) {
-    const wpWordLower = wp.word.toLowerCase();
+    const normalizedWord = normalizeWord(wp.word);
 
     for (const lemma of lemmas) {
-      let articleFound: string | null = null;
-      let coreWord = wp.word;
       const lemmaLower = lemma.lemma.toLowerCase();
-
-      for (const article of articles) {
-        const articleLower = article.toLowerCase();
-
-        if (article.endsWith("'")) {
-          if (wpWordLower.startsWith(articleLower)) {
-            const remainder = wpWordLower.slice(articleLower.length);
-            if (remainder === lemmaLower) {
-              articleFound = article;
-              coreWord = wp.word.slice(article.length);
-              break;
-            }
-          }
-        } else {
-          if (wpWordLower.startsWith(articleLower + " ")) {
-            const remainder = wpWordLower.slice(articleLower.length + 1);
-            if (remainder === lemmaLower) {
-              articleFound = article + " ";
-              coreWord = wp.word.slice(article.length + 1);
-              break;
-            }
-          }
-        }
-      }
+      const { articleFound, coreWord } = extractPrefix(normalizedWord, lemmaLower, articles);
 
       if (coreWord.toLowerCase() === lemmaLower) {
         matchedPairs.push({
@@ -47,7 +25,7 @@ export function matchWordPairsToLemmas(wordPairs: WordPair[], lemmas: any[], mai
           lemma: lemma.lemma,
           word: wp.word,
           translation: wp.translation!,
-          article: lemma.type === 'subst' ? articleFound : null,
+          prefix: lemma.type === "subst" ? articleFound : null,
         });
         break;
       }

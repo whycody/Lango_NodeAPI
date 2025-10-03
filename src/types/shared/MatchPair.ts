@@ -3,5 +3,5 @@ export type MatchPair = {
   lemma: string,
   word: string,
   translation: string,
-  article: string | null
+  prefix: string | null
 }
