@@ -30,6 +30,7 @@ export class GPTClient {
       },
       body: JSON.stringify({
         model: usedModel,
+        temperature: 0,
         messages: [{ role: 'user', content: prompt }],
       }),
     });
