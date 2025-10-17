@@ -21,6 +21,8 @@ router.post('/login/google', async (req: Request<{}, {}, { idToken: string, devi
     let user = await User.findOne({ provider: 'google', providerId });
     if (!user) {
       user = await User.create({ provider: 'google', providerId, name, email, picture: highResPicture });
+    } else {
+      await User.updateOne({ provider: 'google', providerId }, { name, email, picture: highResPicture });
     }
 
     const accessToken = user.generateAccessToken();
@@ -44,7 +46,10 @@ router.post('/login/facebook', async (req: Request<{}, {}, { accessToken: string
     let user = await User.findOne({ provider: 'facebook', providerId });
     if (!user) {
       user = await User.create({ provider: 'facebook', providerId, name, email, picture: picture.data.url });
+    } else {
+      await User.updateOne({ provider: 'facebook', providerId }, { name, email, picture: picture.data.url });
     }
+
 
     const newAccessToken = user.generateAccessToken();
     const newRefreshToken = user.registerDeviceAndGenerateRefreshToken(deviceId);
