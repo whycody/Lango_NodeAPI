@@ -6,7 +6,6 @@ export class FastAPIClient {
   constructor(baseURL: string = process.env.FASTAPI_URI || "http://fastapi:8000") {
     this.client = axios.create({
       baseURL,
-      timeout: 5000,
     });
   }
 
