@@ -24,14 +24,12 @@ export const generateSuggestionsInBackground = async (userId: string, mainLang: 
 
   await withGenerationLock(key, async () => {
     const suggestionsRepo: SuggestionsRepository = new FastAPISuggestionsRepository();
-    console.log('1')
     const suggestionsResponse = await suggestionsRepo.getUserSuggestions({
       userId,
       mainLang,
       translationLang,
       limit: 30
     });
-    console.log('2')
 
     const { suggested_lemmas_ids: suggestedLemmasIds, median_freq: medianFreq } = suggestionsResponse;
     const suggestedLemmas = await Lemma.find({ _id: { $in: suggestedLemmasIds } }).lean();
