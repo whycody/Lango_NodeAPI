@@ -4,11 +4,24 @@ import app from './app';
 
 dotenv.config();
 
-mongoose.connect(process.env.MONGO_URI!).then(() => {
-  console.log('Connected to MongoDB');
+const connectWithRetry = async (delay = 5000) => {
+  while (true) {
+    try {
+      await mongoose.connect(process.env.MONGO_URI!);
+      console.log('Connected to MongoDB');
+      break;
+    } catch (err) {
+      console.error('MongoDB connection failed, retrying in 5s...');
+      await new Promise(res => setTimeout(res, delay));
+    }
+  }
+};
+
+const startServer = async () => {
+  await connectWithRetry();
   app.listen(process.env.PORT, () => {
-    console.log(`Server running on port ${process.env.PORT}`);
+    console.log(`🚀 Server running on port ${process.env.PORT}`);
   });
-}).catch((error) => {
-  console.error('Error connecting to MongoDB:', error);
-});
+};
+
+startServer();
