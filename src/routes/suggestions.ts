@@ -22,6 +22,7 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
     const suggestions = await getSuggestionsForUser(userId, mainLang, translationLang, since as string | undefined);
     res.json(suggestions);
   } catch (err) {
+    console.error('Failed to get suggestions:', err instanceof Error ? err.message : err);
     res.status(500).json({ error: 'Failed to get suggestions' });
   }
 });
