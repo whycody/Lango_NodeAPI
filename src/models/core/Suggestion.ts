@@ -25,5 +25,6 @@ const suggestionSchema = new Schema<Suggestion>({
 });
 
 suggestionSchema.index({ userId: 1 });
+suggestionSchema.index({ userId: 1, lemmaId: 1, translationLang: 1 }, { unique: true });
 
 export default model<Suggestion>('Suggestion', suggestionSchema, 'suggestions');
