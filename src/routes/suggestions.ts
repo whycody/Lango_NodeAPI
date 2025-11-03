@@ -5,6 +5,7 @@ import { isLanguageCodeValue } from "../constants/languageCodes";
 import Suggestion from "../models/core/Suggestion";
 import { SuggestionAttr } from "../types/models/SuggestionAttr";
 import { updateLemmaTranslationCounts } from "../services/utils/translationService";
+import { mergeSuggestionFlags } from "../services/utils/mergeSuggestionFlags";
 
 const router = Router();
 
@@ -34,23 +35,43 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
 
   for (const suggestion of clientSuggestions) {
     try {
-      const existingSuggestion = await Suggestion.findOne({ _id: suggestion.id, userId });
+      const existing = await Suggestion.findOne({ _id: suggestion.id, userId });
+      const now = nowUTC();
 
-      if (existingSuggestion && new Date(suggestion.locallyUpdatedAt) < new Date(existingSuggestion.updatedAt)) {
+      if (existing) {
+        const mergedFlags = mergeSuggestionFlags(existing, suggestion);
+        const providedSuggestionLocallyUpdatedAt = new Date(suggestion.locallyUpdatedAt);
+        const existingSuggestionUpdatedAt = new Date(existing.updatedAt);
+
+        const shouldUpdate =
+          mergedFlags.added !== existing.added ||
+          mergedFlags.skipped !== existing.skipped ||
+          providedSuggestionLocallyUpdatedAt > existingSuggestionUpdatedAt;
+
+        const updatingSuggestion = providedSuggestionLocallyUpdatedAt > existingSuggestionUpdatedAt
+          ? suggestion : existing;
+
+        if (shouldUpdate) {
+          await updateLemmaTranslationCounts(existing, suggestion);
+
+          const updated = await Suggestion.findOneAndUpdate(
+            { _id: updatingSuggestion.id, userId },
+            { $set: { ...updatingSuggestion, ...mergedFlags, updatedAt: now } },
+          );
+
+          syncedSuggestions.push({ id: updated?._id, updatedAt: updated?.updatedAt });
+        }
+
         continue;
       }
 
-      if (existingSuggestion && (suggestion.added !== existingSuggestion?.added || suggestion.skipped !== existingSuggestion?.skipped)) {
-        await updateLemmaTranslationCounts(existingSuggestion, suggestion);
-      }
-
-      const updatedSuggestion = await Suggestion.findOneAndUpdate(
+      const created = await Suggestion.findOneAndUpdate(
         { _id: suggestion.id, userId },
-        { $set: { ...suggestion, updatedAt: nowUTC() } },
+        { $set: { ...suggestion, updatedAt: now } },
         { upsert: true, new: true }
       );
 
-      syncedSuggestions.push({ id: updatedSuggestion._id, updatedAt: updatedSuggestion.updatedAt });
+      syncedSuggestions.push({ id: created._id, updatedAt: created.updatedAt });
     } catch (error) {
       console.error(`Failed to sync suggestion ${suggestion.id}:`, error);
     }
