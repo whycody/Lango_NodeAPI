@@ -49,7 +49,7 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
           providedSuggestionLocallyUpdatedAt > existingSuggestionUpdatedAt;
 
         const updatingSuggestion = providedSuggestionLocallyUpdatedAt > existingSuggestionUpdatedAt
-          ? suggestion : existing;
+          ? suggestion : { id: suggestion.id };
 
         if (shouldUpdate) {
           await updateLemmaTranslationCounts(existing, suggestion);
@@ -57,8 +57,8 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
           const updated = await Suggestion.findOneAndUpdate(
             { _id: updatingSuggestion.id, userId },
             { $set: { ...updatingSuggestion, ...mergedFlags, updatedAt: now } },
+            { upsert: true, new: true}
           );
-
           syncedSuggestions.push({ id: updated?._id, updatedAt: updated?.updatedAt });
         }
 
