@@ -26,9 +26,7 @@ router.get('/users', authenticate, async (req: Request, res: Response) => {
       ? sessions.reduce((sum, s) => sum + s.averageScore, 0) / sessionCount
       : 0;
 
-    const studyDays = Array.from(new Set(
-      sessions.map(s => s.date.toISOString().split('T')[0])
-    ));
+    const studyDays = Array.from(new Set(sessions.map(s => s.localDay)));
 
     const evaluationCount = await Evaluation.countDocuments({ userId });
 
