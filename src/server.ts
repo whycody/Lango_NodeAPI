@@ -11,7 +11,7 @@ const connectWithRetry = async (delay = 5000) => {
       console.log('Connected to MongoDB');
       break;
     } catch (err) {
-      console.error('MongoDB connection failed, retrying in 5s...');
+      console.error('MongoDB connection failed, retrying in 5s...', process.env.MONGO_URI);
       await new Promise(res => setTimeout(res, delay));
     }
   }
