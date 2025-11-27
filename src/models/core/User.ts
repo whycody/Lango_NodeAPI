@@ -8,13 +8,28 @@ interface RefreshToken {
   issuedAt: Date;
 }
 
+interface DeviceToken {
+  deviceId: string;
+  token: string;
+  enabled: boolean;
+}
+
+interface Notifications {
+  enabled: boolean;
+  preferredHour: number;
+  preferredMinute: number;
+  deviceTokens: DeviceToken[];
+}
+
 interface User extends Document {
   provider: 'google' | 'facebook';
   providerId: string;
   name: string;
   email: string;
   picture?: string;
+  timezone: string;
   sessionModel: SessionModeValue;
+  notifications: Notifications;
   refreshTokens: RefreshToken[];
   generateAccessToken(): string;
   registerDeviceAndGenerateRefreshToken(deviceId: string): string;
@@ -29,7 +44,19 @@ const userSchema = new Schema<User>({
   name: { type: String, required: true },
   email: { type: String, required: false, unique: true },
   picture: { type: String },
+  timezone: { type: String, default: 'Europe/Warsaw' },
   sessionModel: { type: String, enum: Object.values(SessionMode), default: SessionMode.Hybrid, required: true },
+  notifications: {
+    enabled: { type: Boolean, default: true },
+    preferredHour: { type: Number, default: 19 },
+    preferredMinute: { type: Number, default: 0 },
+    timezone: { type: String, default: 'Europe/Warsaw', required: true },
+    deviceTokens: [{
+      deviceId: { type: String, required: true },
+      token: { type: String, required: true },
+      enabled: { type: Boolean, default: true }
+    }]
+  },
   refreshTokens: [{
     deviceId: { type: String, required: true },
     token: { type: String, required: true },
