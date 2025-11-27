@@ -11,7 +11,7 @@ interface RefreshToken {
 interface DeviceToken {
   deviceId: string;
   token: string;
-  enabled: boolean;
+  lastNotifiedAt?: Date;
 }
 
 interface Notifications {
@@ -50,11 +50,10 @@ const userSchema = new Schema<User>({
     enabled: { type: Boolean, default: true },
     preferredHour: { type: Number, default: 19 },
     preferredMinute: { type: Number, default: 0 },
-    timezone: { type: String, default: 'Europe/Warsaw', required: true },
     deviceTokens: [{
       deviceId: { type: String, required: true },
       token: { type: String, required: true },
-      enabled: { type: Boolean, default: true }
+      lastNotifiedAt: { type: Date }
     }]
   },
   refreshTokens: [{

@@ -6,7 +6,7 @@ COPY package*.json ./
 RUN npm install
 RUN npm install -g ts-node-dev
 
-COPY tsconfig.json ./
+COPY firebase-key.json tsconfig.json ./
 COPY src ./src
 
 EXPOSE 3000

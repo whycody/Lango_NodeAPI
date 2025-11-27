@@ -3,13 +3,19 @@ import axios from 'axios';
 import User from '../models/core/User';
 import jwt from 'jsonwebtoken';
 import authenticate from "../middleware/auth";
+import {
+  FacebookLoginRequest,
+  GoogleLoginRequest,
+  RefreshTokenRequest,
+  LogoutRequest
+} from "../types/routes/auth";
 
 const router = Router();
 
 const getHighResPhoto = (photo: string) => photo.replace(/=s\d+-c$/, '=s400-c');
 
-router.post('/login/google', async (req: Request<{}, {}, { idToken: string, deviceId: string }>, res: Response) => {
-  const { idToken, deviceId } = req.body;
+router.post('/login/google', async (req: Request<{}, {}, GoogleLoginRequest>, res: Response) => {
+  const { idToken, deviceId, timezone } = req.body;
   if (!idToken || !deviceId) return res.status(400).json({ message: 'idToken and deviceId are required' });
 
   try {
@@ -20,9 +26,9 @@ router.post('/login/google', async (req: Request<{}, {}, { idToken: string, devi
     const highResPicture = getHighResPhoto(picture);
     let user = await User.findOne({ provider: 'google', providerId });
     if (!user) {
-      user = await User.create({ provider: 'google', providerId, name, email, picture: highResPicture });
+      user = await User.create({ provider: 'google', providerId, name, email, picture: highResPicture, timezone });
     } else {
-      await User.updateOne({ provider: 'google', providerId }, { name, email, picture: highResPicture });
+      await User.updateOne({ provider: 'google', providerId }, { name, email, picture: highResPicture, timezone });
     }
 
     const accessToken = user.generateAccessToken();
@@ -34,8 +40,8 @@ router.post('/login/google', async (req: Request<{}, {}, { idToken: string, devi
   }
 });
 
-router.post('/login/facebook', async (req: Request<{}, {}, { accessToken: string, deviceId: string }>, res: Response) => {
-  const { accessToken, deviceId } = req.body;
+router.post('/login/facebook', async (req: Request<{}, {}, FacebookLoginRequest>, res: Response) => {
+  const { accessToken, deviceId, timezone } = req.body;
   if (!accessToken || !deviceId) return res.status(400).json({ message: 'accessToken and deviceId are required' });
 
   try {
@@ -44,12 +50,12 @@ router.post('/login/facebook', async (req: Request<{}, {}, { accessToken: string
     const { id: providerId, name, email, picture } = response.data;
 
     let user = await User.findOne({ provider: 'facebook', providerId });
+    const userData = { provider: 'facebook', providerId, name, email, picture: picture.data.url, timezone };
     if (!user) {
-      user = await User.create({ provider: 'facebook', providerId, name, email, picture: picture.data.url });
+      user = await User.create(userData);
     } else {
-      await User.updateOne({ provider: 'facebook', providerId }, { name, email, picture: picture.data.url });
+      await User.updateOne({ provider: 'facebook', providerId }, userData);
     }
-
 
     const newAccessToken = user.generateAccessToken();
     const newRefreshToken = user.registerDeviceAndGenerateRefreshToken(deviceId);
@@ -60,7 +66,7 @@ router.post('/login/facebook', async (req: Request<{}, {}, { accessToken: string
   }
 });
 
-router.post('/auth/refresh', async (req, res) => {
+router.post('/auth/refresh', async (req: Request<{}, {}, RefreshTokenRequest>, res: Response) => {
   try {
     const { refreshToken, deviceId } = req.body;
     const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET!) as { userId: string };
@@ -80,7 +86,7 @@ router.post('/auth/refresh', async (req, res) => {
   }
 });
 
-router.post('/auth/logout', authenticate, async (req, res) => {
+router.post('/auth/logout', authenticate, async (req: Request<{}, {}, LogoutRequest>, res: Response) => {
   try {
     const { deviceId } = req.body;
     const user = await User.findById(req.userId);

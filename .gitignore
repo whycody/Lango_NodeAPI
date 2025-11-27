@@ -40,3 +40,5 @@ Thumbs.db
 # Misc
 *.tgz
 !.github
+
+firebase-key.json

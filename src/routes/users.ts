@@ -50,6 +50,7 @@ router.get('/users', authenticate, async (req: Request, res: Response) => {
       email: user.email,
       picture: user.picture,
       sessionModel: user.sessionModel,
+      notificationsEnabled: user.notifications.enabled,
       translationLang,
       mainLang,
       stats: {
