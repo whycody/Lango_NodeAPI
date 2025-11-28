@@ -1,33 +1,55 @@
 import Session from '../../models/core/Session';
+import { SuggestedTime } from "../../models/core/User";
 
-interface SuggestedTime {
-  hour: number;
-  minute: number;
+interface BestTimes {
+  neutralTime: SuggestedTime;
+  endOfDayTime: SuggestedTime;
 }
 
-export const calculateBestTime = async (userId: string): Promise<SuggestedTime | null> => {
+export const calculateBestTimes = async (userId: string): Promise<BestTimes | null> => {
   try {
-    const sessions = await Session.find({ userId, finished: true }).sort({ date: -1 }).limit(100);
+    const sessions = await Session.find({ userId, finished: true })
+      .sort({ date: -1 })
+      .limit(100);
 
     if (sessions.length === 0) return null;
 
-    const minutesSinceMidnight = sessions.map(s => {
-      const d = new Date(s.date);
-      return d.getHours() * 60 + d.getMinutes();
-    }).sort((a, b) => a - b);
+    const toMinutes = (d: Date) => d.getHours() * 60 + d.getMinutes();
 
-    const mid = Math.floor(minutesSinceMidnight.length / 2);
-    const medianMinutes = minutesSinceMidnight.length % 2 === 0
-      ? Math.floor((minutesSinceMidnight[mid - 1] + minutesSinceMidnight[mid]) / 2)
-      : minutesSinceMidnight[mid];
+    const neutralMinutes = sessions.map(s => toMinutes(new Date(s.date))).sort((a, b) => a - b);
+    const midNeutral = Math.floor(neutralMinutes.length / 2);
+    const medianNeutral = neutralMinutes.length % 2 === 0
+      ? Math.floor((neutralMinutes[midNeutral - 1] + neutralMinutes[midNeutral]) / 2)
+      : neutralMinutes[midNeutral];
+    const neutralTime: SuggestedTime = { hour: Math.floor(medianNeutral / 60), minute: medianNeutral % 60 };
 
-    const hour = Math.floor(medianMinutes / 60);
-    const minute = medianMinutes % 60;
+    const endRangeMinutes = sessions
+      .map(s => new Date(s.date))
+      .filter(d => d.getHours() >= 20 && d.getHours() <= 23)
+      .map(toMinutes)
+      .sort((a, b) => a - b);
 
-    return { hour, minute };
+    let endOfDayTime: SuggestedTime;
+    if (endRangeMinutes.length === 0) {
+      endOfDayTime = { hour: 22, minute: 0 };
+    } else {
+      const midEnd = Math.floor(endRangeMinutes.length / 2);
+      const medianEnd = endRangeMinutes.length % 2 === 0
+        ? Math.floor((endRangeMinutes[midEnd - 1] + endRangeMinutes[midEnd]) / 2)
+        : endRangeMinutes[midEnd];
+      endOfDayTime = { hour: Math.floor(medianEnd / 60), minute: medianEnd % 60 };
+    }
+
+    const neutralTotal = neutralTime.hour * 60 + neutralTime.minute;
+    const endTotal = endOfDayTime.hour * 60 + endOfDayTime.minute;
+    if (endTotal - neutralTotal < 120) {
+      const adjusted = Math.max(0, endTotal - 120);
+      endOfDayTime = { hour: Math.floor(adjusted / 60), minute: adjusted % 60 };
+    }
+
+    return { neutralTime, endOfDayTime };
   } catch (error) {
-    console.error("Failed to calculate notification time:", error);
+    console.error("Failed to calculate best times:", error);
     return null;
   }
 };
-

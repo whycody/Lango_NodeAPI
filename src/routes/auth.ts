@@ -3,12 +3,7 @@ import axios from 'axios';
 import User from '../models/core/User';
 import jwt from 'jsonwebtoken';
 import authenticate from "../middleware/auth";
-import {
-  FacebookLoginRequest,
-  GoogleLoginRequest,
-  RefreshTokenRequest,
-  LogoutRequest
-} from "../types/routes/auth";
+import { FacebookLoginRequest, GoogleLoginRequest, LogoutRequest, RefreshTokenRequest } from "../types/routes/auth";
 
 const router = Router();
 

@@ -16,7 +16,7 @@ describe("getLemmasIdsToTranslate", () => {
     jest.clearAllMocks()
   });
 
-  it("returns all lemmaIds as untranslated when no translations exist", async () => {
+  it("returns all lemmaIds as untranslated when no locales exist", async () => {
     (LemmaTranslation.find as jest.Mock).mockReturnValue({
       lean: jest.fn().mockResolvedValue([]),
     });

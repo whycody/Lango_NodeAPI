@@ -8,6 +8,11 @@ interface RefreshToken {
   issuedAt: Date;
 }
 
+export interface SuggestedTime {
+  hour: number;
+  minute: number;
+}
+
 interface DeviceToken {
   deviceId: string;
   token: string;
@@ -16,8 +21,8 @@ interface DeviceToken {
 
 interface Notifications {
   enabled: boolean;
-  preferredHour: number;
-  preferredMinute: number;
+  neutralTime: SuggestedTime;
+  endOfDayTime: SuggestedTime;
   deviceTokens: DeviceToken[];
 }
 
@@ -48,8 +53,14 @@ const userSchema = new Schema<User>({
   sessionModel: { type: String, enum: Object.values(SessionMode), default: SessionMode.Hybrid, required: true },
   notifications: {
     enabled: { type: Boolean, default: true },
-    preferredHour: { type: Number, default: 19 },
-    preferredMinute: { type: Number, default: 0 },
+    neutralTime: {
+      hour: { type: Number, default: 15 },
+      minute: { type: Number, default: 0 }
+    },
+    endOfDayTime: {
+      hour: { type: Number, default: 20 },
+      minute: { type: Number, default: 0 }
+    },
     deviceTokens: [{
       deviceId: { type: String, required: true },
       token: { type: String, required: true },

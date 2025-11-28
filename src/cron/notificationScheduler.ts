@@ -1,7 +1,7 @@
 import cron from 'node-cron';
 import User from '../models/core/User';
-import { calculateBestTime } from '../services/notifications/calculateBestTime';
 import { Types } from "mongoose";
+import { calculateBestTimes } from "../services/notifications/calculateBestTime";
 
 cron.schedule('0 3 * * *', async () => {
   try {
@@ -11,13 +11,19 @@ cron.schedule('0 3 * * *', async () => {
 
     for (const user of users) {
       const userId = user._id as Types.ObjectId;
-      const bestTime = await calculateBestTime(userId.toString());
+      const bestTimes = await calculateBestTimes(userId.toString());
 
-      if (bestTime) {
-        await User.findByIdAndUpdate(user._id, {
-          'notifications.preferredHour': bestTime.hour,
-          'notifications.preferredMinute': bestTime.minute
-        });
+      if (bestTimes) {
+        await User.findByIdAndUpdate(
+          userId,
+          {
+            'notifications.neutralTime.hour': bestTimes.neutralTime.hour,
+            'notifications.neutralTime.minute': bestTimes.neutralTime.minute,
+            'notifications.endOfDayTime.hour': bestTimes.endOfDayTime.hour,
+            'notifications.endOfDayTime.minute': bestTimes.endOfDayTime.minute,
+          },
+          { new: true }
+        );
       }
     }
 
