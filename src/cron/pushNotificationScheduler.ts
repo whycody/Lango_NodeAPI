@@ -1,72 +1,65 @@
 import cron from 'node-cron';
 import moment from 'moment-timezone';
-import User from "../models/core/User";
-import Session from "../models/core/Session";
-import Evaluation from "../models/core/Evaluation";
-import Word from "../models/core/Word";
-import { sendPushNotification } from "../services/notifications/pushNotification";
-import {
-  getRandomEndOfDayNotification,
-  getRandomNeutralNotification
-} from "../services/notifications/notificationsHelper";
 
-cron.schedule('* * * * *', async () => {
+import {
+  getNotificationContent,
+  loadUsersForNotifications,
+  loadUsersLanguages,
+  loadUsersWithSessionToday,
+  sendNotificationToDevice,
+  shouldNotify
+} from "../services/notifications/utils";
+import Evaluation from "../models/core/Evaluation";
+import { Types } from "mongoose";
+
+cron.schedule("* * * * *", async () => {
   try {
     const nowUTC = new Date();
-    const users = await User.find({ 'notifications.enabled': true });
+    const users = await loadUsersForNotifications();
+    const usersWithSessionToday = await loadUsersWithSessionToday(nowUTC, users);
+    const usersLanguages = await loadUsersLanguages(users);
 
     for (const user of users) {
-      const userTime = moment(nowUTC).tz(user.timezone || 'Europe/Warsaw');
-      const todayStr = userTime.format('YYYY-MM-DD');
+      const userId = (user._id as Types.ObjectId).toString();
 
-      const hasTodaySession = await Session.exists({
-        userId: user._id,
-        finished: true,
-        localDay: todayStr
-      });
+      if (usersWithSessionToday.has(userId)) continue;
 
-      if (hasTodaySession) continue;
-
+      const userTime = moment(nowUTC).tz(user.timezone || "Europe/Warsaw");
+      const lang = usersLanguages[userId] || "en";
       const lastEval = await Evaluation.findOne({ userId: user._id }).sort({ date: -1 });
-      let lang = 'en';
+
+      let learnedRecently = false;
       if (lastEval) {
-        const word = await Word.findById(lastEval.wordId);
-        if (word?.translationLang) lang = word.translationLang;
+        const daysDiff = moment(nowUTC).diff(moment(lastEval.date), "days");
+        learnedRecently = daysDiff <= 2;
       }
 
       for (const device of user.notifications.deviceTokens) {
-        const lastNotified = device.lastNotifiedAt
-          ? moment(device.lastNotifiedAt).tz(user.timezone)
+        const neutralLast = device.neutralTimeLastNotifiedAt
+          ? moment(device.neutralTimeLastNotifiedAt).tz(user.timezone)
           : null;
 
-        const shouldNotify = (notifHour: number, notifMinute: number) => {
-          const notifTime = moment.tz({
-            year: userTime.year(),
-            month: userTime.month(),
-            day: userTime.date(),
-            hour: notifHour,
-            minute: notifMinute
-          }, user.timezone);
+        const endLast = device.endOfDayTimeLastNotifiedAt
+          ? moment(device.endOfDayTimeLastNotifiedAt).tz(user.timezone)
+          : null;
 
-          return (!lastNotified || lastNotified.isBefore(notifTime));
-        };
+        const neutralTime = user.notifications.neutralTime;
+        const endOfDayTime = user.notifications.endOfDayTime;
 
-        if (shouldNotify(user.notifications.neutralTime.hour, user.notifications.neutralTime.minute)) {
-          const { title, body } = getRandomNeutralNotification(lang);
-          await sendPushNotification(device.token, { title, body });
-          device.lastNotifiedAt = nowUTC;
+        if (shouldNotify(userTime, neutralTime.hour, neutralTime.minute, neutralLast)) {
+          const neutralContent = getNotificationContent('neutral', lang);
+          await sendNotificationToDevice(device, neutralContent, 'neutral', nowUTC);
         }
 
-        if (shouldNotify(user.notifications.endOfDayTime.hour, user.notifications.endOfDayTime.minute)) {
-          const { title, body } = getRandomEndOfDayNotification(lang);
-          await sendPushNotification(device.token, { title, body });
-          device.lastNotifiedAt = nowUTC;
+        if (learnedRecently && shouldNotify(userTime, endOfDayTime.hour, endOfDayTime.minute, endLast)) {
+          const endContent = getNotificationContent('end', lang);
+          await sendNotificationToDevice(device, endContent, 'end', nowUTC);
         }
       }
 
       await user.save();
     }
-  } catch (error) {
-    console.error('Failed to send notifications:', error);
+  } catch (err) {
+    console.error("Failed to send notifications:", err);
   }
 });

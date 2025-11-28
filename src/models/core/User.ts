@@ -16,7 +16,8 @@ export interface SuggestedTime {
 interface DeviceToken {
   deviceId: string;
   token: string;
-  lastNotifiedAt?: Date;
+  endOfDayTimeLastNotifiedAt?: Date;
+  neutralTimeLastNotifiedAt?: Date;
 }
 
 interface Notifications {
@@ -64,7 +65,8 @@ const userSchema = new Schema<User>({
     deviceTokens: [{
       deviceId: { type: String, required: true },
       token: { type: String, required: true },
-      lastNotifiedAt: { type: Date }
+      endOfDayTimeLastNotifiedAt: { type: Date },
+      neutralTimeLastNotifiedAt: { type: Date },
     }]
   },
   refreshTokens: [{

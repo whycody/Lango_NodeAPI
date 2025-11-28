@@ -3,7 +3,7 @@ import User from '../models/core/User';
 import { Types } from "mongoose";
 import { calculateBestTimes } from "../services/notifications/calculateBestTime";
 
-cron.schedule('0 3 * * *', async () => {
+cron.schedule('* * * * *', async () => {
   try {
     console.log('Updating notification times for users...');
 
