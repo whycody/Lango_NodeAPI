@@ -3,6 +3,7 @@ import {
   getRandomNeutralNotification,
   getRandomEndOfDayNotification
 } from "../notificationsHelper";
+import { LanguageCodeValue } from "../../../constants/languageCodes";
 
 export const shouldNotify = (
   userTime: moment.Moment,
@@ -24,10 +25,7 @@ export const shouldNotify = (
   return !lastSent || lastSent.isBefore(notifTime);
 };
 
-export const getNotificationContent = (
-  type: "neutral" | "end",
-  lang: string
-) => {
+export const getNotificationContent = (type: "neutral" | "end", lang: LanguageCodeValue) => {
   if (type === "neutral") return getRandomNeutralNotification(lang);
   return getRandomEndOfDayNotification(lang);
 };

@@ -17,6 +17,7 @@ interface PushPayload {
 
 export const sendPushNotification = async (token: string, payload: PushPayload) => {
   try {
+    console.log('sending push to token:', token);
     await admin.messaging().send({
       token,
       notification: {

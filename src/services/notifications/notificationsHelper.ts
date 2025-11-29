@@ -1,4 +1,6 @@
-import { getTranslations } from '../../locales'
+import { getTranslations } from "../../locales";
+import { LanguageCodeValue } from "../../constants/languageCodes";
+
 
 const neutralNotifications = [
   'time_for_study',
@@ -17,8 +19,9 @@ type EndOfDayNotification = typeof endOfDayNotifications[number];
 
 type Notification = NeutralNotification | EndOfDayNotification;
 
-export const getRandomNeutralNotification = (lang: string): { title: string; body: string } => {
+export const getRandomNeutralNotification = (lang: LanguageCodeValue): { title: string; body: string } => {
   const translations = getTranslations(lang);
+  console.log(translations)
   const key = neutralNotifications[Math.floor(Math.random() * neutralNotifications.length)];
   return {
     title: translations[`${key}_title`],
@@ -26,7 +29,7 @@ export const getRandomNeutralNotification = (lang: string): { title: string; bod
   };
 };
 
-export const getRandomEndOfDayNotification = (lang: string): { title: string; body: string } => {
+export const getRandomEndOfDayNotification = (lang: LanguageCodeValue): { title: string; body: string } => {
   const translations = getTranslations(lang);
   const key = endOfDayNotifications[Math.floor(Math.random() * endOfDayNotifications.length)];
   return {
@@ -35,13 +38,3 @@ export const getRandomEndOfDayNotification = (lang: string): { title: string; bo
   };
 };
 
-export const getNotificationByKey = (
-  lang: string,
-  key: Notification
-): { title: string; body: string } => {
-  const translations = getTranslations(lang);
-  return {
-    title: translations[`${key}_title`],
-    body: translations[`${key}_body`]
-  };
-};

@@ -1,6 +1,7 @@
 import Evaluation from "../../../models/core/Evaluation";
 import Word from "../../../models/core/Word";
 import { Types } from "mongoose";
+import { LanguageCode, LanguageCodeValue } from "../../../constants/languageCodes";
 
 export const loadUsersLanguages = async (userIds: any[]) => {
   const lastEvals = await Evaluation.aggregate([
@@ -21,11 +22,11 @@ export const loadUsersLanguages = async (userIds: any[]) => {
     { translationLang: 1 }
   );
 
-  const langByUser: Record<string, string> = {};
+  const langByUser: Record<string, LanguageCodeValue> = {};
 
   for (const evalItem of lastEvals) {
     const word = words.find(w => (w._id as Types.ObjectId)?.equals?.(evalItem.wordId));
-    langByUser[evalItem._id.toString()] = word?.translationLang || "en";
+    langByUser[evalItem._id.toString()] = word?.translationLang || LanguageCode.En;
   }
 
   return langByUser;

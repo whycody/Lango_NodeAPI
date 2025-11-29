@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { LanguageCodeValue } from "../constants/languageCodes";
 
 type NotificationKeys =
   | 'time_for_study'
@@ -18,10 +19,10 @@ const localesPath = path.join(__dirname);
 
 const cache: Record<string, Translation> = {};
 
-export const getTranslations = (lang: string): Translation => {
+export const getTranslations = (lang: LanguageCodeValue): Translation => {
   if (cache[lang]) return cache[lang];
 
-  const filePath = path.join(localesPath, lang, 'translation.json');
+  const filePath = path.join(localesPath, lang, 'translations.json');
   if (!fs.existsSync(filePath)) {
     throw new Error(`Translations not found for language: ${lang}`);
   }

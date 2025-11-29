@@ -11,8 +11,9 @@ import {
 } from "../services/notifications/utils";
 import Evaluation from "../models/core/Evaluation";
 import { Types } from "mongoose";
+import { LanguageCode } from "../constants/languageCodes";
 
-cron.schedule("* * * * *", async () => {
+cron.schedule("* * * * * *", async () => {
   try {
     const nowUTC = new Date();
     const users = await loadUsersForNotifications();
@@ -25,7 +26,7 @@ cron.schedule("* * * * *", async () => {
       if (usersWithSessionToday.has(userId)) continue;
 
       const userTime = moment(nowUTC).tz(user.timezone || "Europe/Warsaw");
-      const lang = usersLanguages[userId] || "en";
+      const lang = usersLanguages[userId] || LanguageCode.En;
       const lastEval = await Evaluation.findOne({ userId: user._id }).sort({ date: -1 });
 
       let learnedRecently = false;
