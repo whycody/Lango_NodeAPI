@@ -1,7 +1,6 @@
 import { getTranslations } from "../../locales";
 import { LanguageCodeValue } from "../../constants/languageCodes";
 
-
 const neutralNotifications = [
   'time_for_study',
   'keep_it_up',
@@ -14,14 +13,8 @@ const endOfDayNotifications = [
   'almost_end_of_day'
 ] as const;
 
-type NeutralNotification = typeof neutralNotifications[number];
-type EndOfDayNotification = typeof endOfDayNotifications[number];
-
-type Notification = NeutralNotification | EndOfDayNotification;
-
 export const getRandomNeutralNotification = (lang: LanguageCodeValue): { title: string; body: string } => {
   const translations = getTranslations(lang);
-  console.log(translations)
   const key = neutralNotifications[Math.floor(Math.random() * neutralNotifications.length)];
   return {
     title: translations[`${key}_title`],
