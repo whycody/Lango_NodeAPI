@@ -22,7 +22,9 @@ export const shouldNotify = (
     userTime.tz() as string
   );
 
-  return !lastSent || lastSent.isBefore(notifTime);
+  if (lastSent?.tz(userTime.tz() ?? 'Europe/Warsaw').isSame(userTime, "day")) return false;
+
+  return lastSent?.isBefore(notifTime);
 };
 
 export const getNotificationContent = (type: "neutral" | "end", lang: LanguageCodeValue) => {

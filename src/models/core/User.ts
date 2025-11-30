@@ -65,8 +65,8 @@ const userSchema = new Schema<User>({
     deviceTokens: [{
       deviceId: { type: String, required: true },
       token: { type: String, required: true },
-      endOfDayTimeLastNotifiedAt: { type: Date },
-      neutralTimeLastNotifiedAt: { type: Date },
+      endOfDayTimeLastNotifiedAt: { type: Date, default: Date.now },
+      neutralTimeLastNotifiedAt: { type: Date, default: Date.now },
     }]
   },
   refreshTokens: [{

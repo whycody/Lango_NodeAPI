@@ -13,7 +13,7 @@ import Evaluation from "../models/core/Evaluation";
 import { Types } from "mongoose";
 import { LanguageCode } from "../constants/languageCodes";
 
-cron.schedule("* * * * * *", async () => {
+cron.schedule("* * * * *", async () => {
   try {
     const nowUTC = new Date();
     const users = await loadUsersForNotifications();
