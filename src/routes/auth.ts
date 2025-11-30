@@ -4,6 +4,7 @@ import User from '../models/core/User';
 import jwt from 'jsonwebtoken';
 import authenticate from "../middleware/auth";
 import { FacebookLoginRequest, GoogleLoginRequest, LogoutRequest, RefreshTokenRequest } from "../types/routes/auth";
+import { removeTokensWithDeviceId } from "../services/utils/removeTokensWithDeviceId";
 
 const router = Router();
 
@@ -62,8 +63,9 @@ router.post('/login/facebook', async (req: Request<{}, {}, FacebookLoginRequest>
 });
 
 router.post('/auth/refresh', async (req: Request<{}, {}, RefreshTokenRequest>, res: Response) => {
+  const { refreshToken, deviceId } = req.body;
+
   try {
-    const { refreshToken, deviceId } = req.body;
     const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET!) as { userId: string };
     const user = await User.findById(decoded.userId);
 
@@ -77,6 +79,12 @@ router.post('/auth/refresh', async (req: Request<{}, {}, RefreshTokenRequest>, r
       accessToken: newAccessToken
     });
   } catch (error) {
+    try {
+      await removeTokensWithDeviceId(deviceId);
+    } catch (err) {
+      console.error('Failed to remove tokens during failed refresh:', err);
+    }
+
     res.status(401).json({ message: 'Invalid or expired token' });
   }
 });
@@ -88,7 +96,7 @@ router.post('/auth/logout', authenticate, async (req: Request<{}, {}, LogoutRequ
 
     if (!user) throw new Error('User not found');
 
-    user.revokeRefreshToken(deviceId);
+    user.revokeTokensRelatedWithDeviceId(deviceId);
 
     res.json({ message: 'Logged out successfully' });
   } catch (error) {

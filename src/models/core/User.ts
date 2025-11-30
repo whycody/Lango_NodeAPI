@@ -41,7 +41,7 @@ interface User extends Document {
   registerDeviceAndGenerateRefreshToken(deviceId: string): string;
   generateRefreshToken(deviceId: string): string;
   extendRefreshToken(oldToken: string, deviceId: string): string;
-  revokeRefreshToken(deviceId: string): void;
+  revokeTokensRelatedWithDeviceId(deviceId: string): void;
 }
 
 const userSchema = new Schema<User>({
@@ -142,10 +142,10 @@ userSchema.methods.extendRefreshToken = function (oldToken: string, deviceId: st
   return newToken;
 };
 
-userSchema.methods.revokeRefreshToken = function (deviceId: string): void {
+userSchema.methods.revokeTokensRelatedWithDeviceId = function (deviceId: string): void {
   this.refreshTokens = this.refreshTokens.filter((rt: RefreshToken) => rt.deviceId !== deviceId);
+  this.notifications.deviceTokens = this.notifications.deviceTokens.filter((token: DeviceToken) => token.deviceId !== deviceId);
   this.save();
 };
-
 
 export default model<User>('User', userSchema, 'users');
