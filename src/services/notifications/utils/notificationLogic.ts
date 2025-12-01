@@ -24,7 +24,9 @@ export const shouldNotify = (
 
   if (lastSent?.tz(userTime.tz() ?? 'Europe/Warsaw').isSame(userTime, "day")) return false;
 
-  return lastSent?.isBefore(notifTime);
+  const maxAllowedTime = notifTime.clone().add(5, 'minutes');
+
+  return userTime.isSameOrAfter(notifTime) && userTime.isSameOrBefore(maxAllowedTime);
 };
 
 export const getNotificationContent = (type: "neutral" | "end", lang: LanguageCodeValue) => {

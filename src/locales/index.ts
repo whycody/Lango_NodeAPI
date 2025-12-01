@@ -1,5 +1,7 @@
-import fs from 'fs';
-import path from 'path';
+import enTranslations from './en/translations.json';
+import plTranslations from './pl/translations.json';
+import esTranslations from './es/translations.json';
+import itTranslations from './it/translations.json';
 import { LanguageCodeValue } from "../constants/languageCodes";
 
 type NotificationKeys =
@@ -15,19 +17,15 @@ type Translation = {
   [key in `${NotificationKeys}_title` | `${NotificationKeys}_body`]: string;
 };
 
-const localesPath = path.join(__dirname);
-
-const cache: Record<string, Translation> = {};
+const translationsMap: Record<LanguageCodeValue, Translation> = {
+  en: enTranslations,
+  pl: plTranslations,
+  es: esTranslations,
+  it: itTranslations
+};
 
 export const getTranslations = (lang: LanguageCodeValue): Translation => {
-  if (cache[lang]) return cache[lang];
-
-  const filePath = path.join(localesPath, lang, 'translations.json');
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`Translations not found for language: ${lang}`);
-  }
-
-  const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-  cache[lang] = data;
+  const data = translationsMap[lang];
+  if (!data) throw new Error(`Translations not found for language: ${lang}`);
   return data;
 };
