@@ -25,7 +25,7 @@ export const loadUsersLanguages = async (userIds: any[]) => {
   const langByUser: Record<string, LanguageCodeValue> = {};
 
   for (const evalItem of lastEvals) {
-    const word = words.find(w => (w._id as Types.ObjectId)?.equals?.(evalItem.wordId));
+    const word = words.find(w => (w._id as Types.ObjectId)?.toString() == evalItem.wordId);
     langByUser[evalItem._id.toString()] = word?.translationLang || LanguageCode.En;
   }
 
