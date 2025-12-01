@@ -16,8 +16,6 @@ export interface SuggestedTime {
 interface DeviceToken {
   deviceId: string;
   token: string;
-  endOfDayTimeLastNotifiedAt?: Date;
-  neutralTimeLastNotifiedAt?: Date;
 }
 
 interface Notifications {
@@ -25,6 +23,8 @@ interface Notifications {
   neutralTime: SuggestedTime;
   endOfDayTime: SuggestedTime;
   deviceTokens: DeviceToken[];
+  endOfDayTimeLastNotifiedAt?: Date;
+  neutralTimeLastNotifiedAt?: Date;
 }
 
 interface User extends Document {
@@ -65,9 +65,9 @@ const userSchema = new Schema<User>({
     deviceTokens: [{
       deviceId: { type: String, required: true },
       token: { type: String, required: true },
-      endOfDayTimeLastNotifiedAt: { type: Date, default: Date.now },
-      neutralTimeLastNotifiedAt: { type: Date, default: Date.now },
-    }]
+    }],
+    endOfDayTimeLastNotifiedAt: { type: Date, default: Date.now },
+    neutralTimeLastNotifiedAt: { type: Date, default: Date.now },
   },
   refreshTokens: [{
     deviceId: { type: String, required: true },

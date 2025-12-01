@@ -6,12 +6,12 @@ import {
   loadUsersForNotifications,
   loadUsersLanguages,
   loadUsersWithSessionToday,
-  sendNotificationToDevice,
   shouldNotify
 } from "../services/notifications/utils";
 import Evaluation from "../models/core/Evaluation";
 import { Types } from "mongoose";
 import { LanguageCode } from "../constants/languageCodes";
+import { sendPushNotification } from "../services/notifications/pushNotification";
 
 cron.schedule("* * * * *", async () => {
   try {
@@ -35,26 +35,28 @@ cron.schedule("* * * * *", async () => {
         learnedRecently = daysDiff <= 2;
       }
 
+      const neutralLast = user.notifications.neutralTimeLastNotifiedAt
+        ? moment(user.notifications.neutralTimeLastNotifiedAt).tz(user.timezone)
+        : null;
+
+      const endLast = user.notifications.endOfDayTimeLastNotifiedAt
+        ? moment(user.notifications.endOfDayTimeLastNotifiedAt).tz(user.timezone)
+        : null;
+
       for (const device of user.notifications.deviceTokens) {
-        const neutralLast = device.neutralTimeLastNotifiedAt
-          ? moment(device.neutralTimeLastNotifiedAt).tz(user.timezone)
-          : null;
-
-        const endLast = device.endOfDayTimeLastNotifiedAt
-          ? moment(device.endOfDayTimeLastNotifiedAt).tz(user.timezone)
-          : null;
-
         const neutralTime = user.notifications.neutralTime;
         const endOfDayTime = user.notifications.endOfDayTime;
 
         if (shouldNotify(userTime, neutralTime.hour, neutralTime.minute, neutralLast)) {
           const neutralContent = getNotificationContent('neutral', lang);
-          await sendNotificationToDevice(device, neutralContent, 'neutral', nowUTC);
+          await sendPushNotification(device.token, neutralContent);
+          user.notifications.neutralTimeLastNotifiedAt = nowUTC;
         }
 
         if (learnedRecently && shouldNotify(userTime, endOfDayTime.hour, endOfDayTime.minute, endLast)) {
           const endContent = getNotificationContent('end', lang);
-          await sendNotificationToDevice(device, endContent, 'end', nowUTC);
+          await sendPushNotification(device.token, endContent);
+          user.notifications.endOfDayTimeLastNotifiedAt = nowUTC;
         }
       }
 
