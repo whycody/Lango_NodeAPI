@@ -8,10 +8,18 @@ type NotificationKeys =
   | 'time_for_study'
   | 'keep_it_up'
   | 'learning_moment'
+  | 'daily_goal_reminder'
+  | 'hydration_break'
+  | 'streak_safety'
+  | 'small_step'
+  | 'consistency_matters'
+  | 'mini_challenge'
   | 'dont_forget_session'
   | 'finish_before_midnight'
   | 'almost_end_of_day'
-  | 'daily_goal_reminder';
+  | 'last_call'
+  | 'quick_session'
+  | 'end_of_day_focus';
 
 type Translation = {
   [key in `${NotificationKeys}_title` | `${NotificationKeys}_body`]: string;
