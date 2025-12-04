@@ -17,7 +17,8 @@ cron.schedule("* * * * *", async () => {
   try {
     const nowUTC = new Date();
     const users = await loadUsersForNotifications();
-    const usersWithSessionToday = await loadUsersWithSessionToday(nowUTC, users);
+    const userIds = users.map(user => (user._id as Types.ObjectId).toString());
+    const usersWithSessionToday = await loadUsersWithSessionToday(nowUTC, userIds);
     const usersLanguages = await loadUsersLanguages(users.map(u => (u._id as Types.ObjectId).toString()));
 
     for (const user of users) {

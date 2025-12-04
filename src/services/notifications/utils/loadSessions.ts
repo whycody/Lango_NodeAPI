@@ -1,7 +1,7 @@
 import Session from "../../../models/core/Session";
 import moment from "moment-timezone";
 
-export const loadUsersWithSessionToday = async (nowUTC: Date, userIds: any[]) => {
+export const loadUsersWithSessionToday = async (nowUTC: Date, userIds: string[]) => {
   const today = moment(nowUTC).format("YYYY-MM-DD");
 
   const sessions = await Session.find(
