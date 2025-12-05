@@ -4,12 +4,8 @@ import moment from 'moment-timezone';
 import {
   getNotificationContent,
   loadUsersForNotifications,
-  loadUsersLanguages,
-  loadUsersWithSessionToday,
   shouldNotify
 } from "../services/notifications/utils";
-import Evaluation from "../models/core/Evaluation";
-import { Types } from "mongoose";
 import { LanguageCode } from "../constants/languageCodes";
 import { sendPushNotification } from "../services/notifications/pushNotification";
 
@@ -17,24 +13,15 @@ cron.schedule("* * * * *", async () => {
   try {
     const nowUTC = new Date();
     const users = await loadUsersForNotifications();
-    const userIds = users.map(user => (user._id as Types.ObjectId).toString());
-    const usersWithSessionToday = await loadUsersWithSessionToday(nowUTC, userIds);
-    const usersLanguages = await loadUsersLanguages(users.map(u => (u._id as Types.ObjectId).toString()));
 
     for (const user of users) {
-      const userId = (user._id as Types.ObjectId).toString();
-
-      if (usersWithSessionToday.has(userId)) continue;
-
       const userTime = moment(nowUTC).tz(user.timezone || "Europe/Warsaw");
-      const lang = usersLanguages[userId] || LanguageCode.En;
-      const lastEval = await Evaluation.findOne({ userId: user._id }).sort({ date: -1 });
+      const today = moment(nowUTC).tz(user.timezone).startOf("day");
 
-      let learnedRecently = false;
-      if (lastEval) {
-        const daysDiff = moment(nowUTC).diff(moment(lastEval.date), "days");
-        learnedRecently = daysDiff <= 2;
-      }
+      const learnedRecently = user.stats.studyDays.some(dayStr => {
+        const day = moment(dayStr, "YYYY-MM-DD");
+        return today.diff(day, "days") <= 2;
+      });
 
       const neutralLast = user.notifications.neutralTimeLastNotifiedAt
         ? moment(user.notifications.neutralTimeLastNotifiedAt).tz(user.timezone)
@@ -49,13 +36,13 @@ cron.schedule("* * * * *", async () => {
         const endOfDayTime = user.notifications.endOfDayTime;
 
         if (shouldNotify(userTime, neutralTime.hour, neutralTime.minute, neutralLast)) {
-          const neutralContent = getNotificationContent('neutral', lang);
+          const neutralContent = getNotificationContent('neutral', user.translationLang || LanguageCode.En);
           await sendPushNotification(device.token, neutralContent);
           user.notifications.neutralTimeLastNotifiedAt = nowUTC;
         }
 
         if (learnedRecently && shouldNotify(userTime, endOfDayTime.hour, endOfDayTime.minute, endLast)) {
-          const endContent = getNotificationContent('end', lang);
+          const endContent = getNotificationContent('end', user.translationLang || LanguageCode.En);
           await sendPushNotification(device.token, endContent);
           user.notifications.endOfDayTimeLastNotifiedAt = nowUTC;
         }

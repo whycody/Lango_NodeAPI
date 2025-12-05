@@ -1,6 +1,7 @@
 import { Document, model, Schema } from 'mongoose';
 import jwt from 'jsonwebtoken';
 import { SessionMode, SessionModeValue } from "../../constants/sessionModes";
+import { LanguageCodeValue } from "../../constants/languageCodes";
 
 interface RefreshToken {
   deviceId: string;
@@ -41,8 +42,8 @@ interface User extends Document {
   email: string;
   picture?: string;
   timezone: string;
-  mainLang?: string;
-  translationLang?: string;
+  mainLang?: LanguageCodeValue;
+  translationLang?: LanguageCodeValue;
   stats: UserStats;
   sessionModel: SessionModeValue;
   notifications: Notifications;
