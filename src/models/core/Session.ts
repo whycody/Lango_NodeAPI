@@ -1,5 +1,6 @@
 import { Document, model, Schema } from 'mongoose';
 import { SessionMode, SessionModeValue } from "../../constants/sessionModes";
+import { LanguageCode, LanguageCodeValue } from "../../constants/languageCodes";
 
 interface Session extends Document {
   id: string;
@@ -7,6 +8,8 @@ interface Session extends Document {
   date: Date;
   localDay: string;
   mode: string,
+  mainLang: LanguageCodeValue;
+  translationLang: LanguageCodeValue;
   sessionModel: SessionModeValue;
   averageScore: number;
   wordsCount: number;
@@ -20,6 +23,8 @@ const sessionSchema = new Schema<Session>({
   date: { type: Date, required: true },
   localDay: { type: String, required: true },
   mode: { type: String, required: true },
+  mainLang: { type: String, enum: Object.values(LanguageCode), required: true },
+  translationLang: { type: String,  enum: Object.values(LanguageCode), required: true },
   sessionModel: { type: 'String', enum: Object.values(SessionMode), required: true },
   averageScore: { type: Number, required: true },
   wordsCount: { type: Number, required: true },

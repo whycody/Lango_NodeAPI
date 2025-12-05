@@ -1,6 +1,7 @@
 import { Request, Response, Router } from 'express';
 import Session from '../models/core/Session';
 import authenticate from '../middleware/auth';
+import { updateUserData } from "../services/utils/updateUserData";
 
 const router = Router();
 
@@ -51,6 +52,8 @@ router.post('/sessions/sync', authenticate, async (req: Request, res: Response) 
       console.error(`Failed to sync session ${session.id}:`, error);
     }
   }
+
+  await updateUserData(userId);
 
   res.json(syncedSessions);
 });

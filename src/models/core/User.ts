@@ -27,6 +27,13 @@ interface Notifications {
   neutralTimeLastNotifiedAt?: Date;
 }
 
+export interface UserStats {
+  studyDays: string[];
+  sessionCount: number;
+  evaluationCount: number;
+  averageScore: number;
+}
+
 interface User extends Document {
   provider: 'google' | 'facebook';
   providerId: string;
@@ -34,6 +41,9 @@ interface User extends Document {
   email: string;
   picture?: string;
   timezone: string;
+  mainLang?: string;
+  translationLang?: string;
+  stats: UserStats;
   sessionModel: SessionModeValue;
   notifications: Notifications;
   refreshTokens: RefreshToken[];
@@ -51,6 +61,14 @@ const userSchema = new Schema<User>({
   email: { type: String, required: false, unique: true },
   picture: { type: String },
   timezone: { type: String, default: 'Europe/Warsaw' },
+  mainLang: { type: String },
+  translationLang: { type: String },
+  stats: {
+    studyDays: { type: [String], default: [] },
+    sessionCount: { type: Number, default: 0 },
+    evaluationCount: { type: Number, default: 0 },
+    averageScore: { type: Number, default: 0 },
+  },
   sessionModel: { type: String, enum: Object.values(SessionMode), default: SessionMode.Hybrid, required: true },
   notifications: {
     enabled: { type: Boolean, default: true },
