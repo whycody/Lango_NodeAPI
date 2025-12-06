@@ -25,7 +25,7 @@ const sessionSchema = new Schema<Session>({
   mode: { type: String, required: true },
   mainLang: { type: String, enum: Object.values(LanguageCode), required: true },
   translationLang: { type: String,  enum: Object.values(LanguageCode), required: true },
-  sessionModel: { type: 'String', enum: Object.values(SessionMode), required: true },
+  sessionModel: { type: String, enum: Object.values(SessionMode), required: true },
   averageScore: { type: Number, required: true },
   wordsCount: { type: Number, required: true },
   finished: { type: Boolean, default: true },
