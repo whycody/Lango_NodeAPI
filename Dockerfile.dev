@@ -5,8 +5,6 @@ WORKDIR /app
 COPY package*.json tsconfig.json ./
 RUN npm install
 
-COPY firebase-key.json ./
-
 COPY src ./src
 
 RUN npx tsc
@@ -20,7 +18,8 @@ RUN npm install --only=production
 
 COPY --from=builder /app/dist ./dist
 
-COPY firebase-key.json ./
+RUN useradd -m appuser
+USER appuser
 
 EXPOSE 3010
 
