@@ -9,9 +9,6 @@ RUN npm install -g ts-node-dev
 COPY tsconfig.json ./
 COPY src ./src
 
-RUN useradd -m appuser
-USER appuser
-
 EXPOSE 3000
 
 CMD ["ts-node-dev", "--respawn", "--transpile-only", "--poll=100", "--watch", "src", "src/server.ts"]

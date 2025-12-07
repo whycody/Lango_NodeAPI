@@ -18,9 +18,6 @@ RUN npm install --only=production
 
 COPY --from=builder /app/dist ./dist
 
-RUN useradd -m appuser
-USER appuser
-
 EXPOSE 3010
 
 CMD ["node", "dist/server.js"]
