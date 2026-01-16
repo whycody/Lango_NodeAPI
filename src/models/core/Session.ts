@@ -1,16 +1,18 @@
 import { Document, model, Schema } from 'mongoose';
 import { SessionMode, SessionModeValue } from "../../constants/sessionModes";
 import { LanguageCode, LanguageCodeValue } from "../../constants/languageCodes";
+import { SessionModel, SessionModelValue } from "../../constants/sessionModels";
 
 interface Session extends Document {
   id: string;
   userId: string;
   date: Date;
   localDay: string;
-  mode: string,
+  mode: SessionModeValue,
   mainLang: LanguageCodeValue;
   translationLang: LanguageCodeValue;
-  sessionModel: SessionModeValue;
+  sessionModel: SessionModelValue;
+  sessionModelVersion: string;
   averageScore: number;
   wordsCount: number;
   finished: boolean;
@@ -22,10 +24,11 @@ const sessionSchema = new Schema<Session>({
   userId: { type: String, required: true },
   date: { type: Date, required: true },
   localDay: { type: String, required: true },
-  mode: { type: String, required: true },
+  mode: { type: String, enum: Object.values(SessionMode), required: true },
   mainLang: { type: String, enum: Object.values(LanguageCode), required: true },
-  translationLang: { type: String,  enum: Object.values(LanguageCode), required: true },
-  sessionModel: { type: String, enum: Object.values(SessionMode), required: true },
+  translationLang: { type: String, enum: Object.values(LanguageCode), required: true },
+  sessionModel: { type: String, enum: Object.values(SessionModel), required: true },
+  sessionModelVersion: { type: String, required: false },
   averageScore: { type: Number, required: true },
   wordsCount: { type: Number, required: true },
   finished: { type: Boolean, default: true },
