@@ -1,7 +1,7 @@
 import { Document, model, Schema } from 'mongoose';
 import jwt from 'jsonwebtoken';
-import { SessionMode, SessionModeValue } from "../../constants/sessionModes";
 import { LanguageCodeValue } from "../../constants/languageCodes";
+import { SessionModel, SessionModelValue } from "../../constants/sessionModels";
 
 interface RefreshToken {
   deviceId: string;
@@ -45,7 +45,7 @@ interface User extends Document {
   mainLang?: LanguageCodeValue;
   translationLang?: LanguageCodeValue;
   stats: UserStats;
-  sessionModel: SessionModeValue;
+  sessionModel: SessionModelValue;
   notifications: Notifications;
   refreshTokens: RefreshToken[];
   generateAccessToken(): string;
@@ -70,7 +70,7 @@ const userSchema = new Schema<User>({
     evaluationCount: { type: Number, default: 0 },
     averageScore: { type: Number, default: 0 },
   },
-  sessionModel: { type: String, enum: Object.values(SessionMode), default: SessionMode.Hybrid, required: true },
+  sessionModel: { type: String, enum: Object.values(SessionModel), default: SessionModel.Hybrid, required: true },
   notifications: {
     enabled: { type: Boolean, default: true },
     neutralTime: {
