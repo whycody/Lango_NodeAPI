@@ -31,10 +31,13 @@ router.post('/devices', authenticate, async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    if (!user.notifications.deviceTokens.some(d => d.deviceId === deviceId)) {
+    const existingToken = user.notifications.deviceTokens.find(d => d.deviceId === deviceId);
+    if (existingToken) {
+      existingToken.token = token;
+    } else {
       user.notifications.deviceTokens.push({ deviceId, token });
-      await user.save();
     }
+    await user.save();
 
     res.json(user.notifications.deviceTokens);
   } catch (error) {
