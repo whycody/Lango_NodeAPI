@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import authenticate from "../middleware/auth";
 import { FacebookLoginRequest, GoogleLoginRequest, LogoutRequest, RefreshTokenRequest } from "../types/routes/auth";
 import { removeTokensWithDeviceId } from "../services/utils/removeTokensWithDeviceId";
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 const router = Router();
 
@@ -59,6 +60,59 @@ router.post('/login/facebook', async (req: Request<{}, {}, FacebookLoginRequest>
     res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
   } catch (error) {
     res.status(401).json({ message: 'Invalid Facebook access token' });
+  }
+});
+
+router.post('/login/apple', async (req: Request, res: Response) => {
+  const { identityToken, deviceId, timezone, fullName } = req.body;
+
+  if (!identityToken || !deviceId) {
+    return res.status(400).json({
+      message: 'identityToken and deviceId are required',
+    });
+  }
+
+  try {
+    const appleJWKS = createRemoteJWKSet(
+      new URL('https://appleid.apple.com/auth/keys')
+    );
+
+    const { payload } = await jwtVerify(identityToken, appleJWKS, {
+      issuer: 'https://appleid.apple.com',
+      audience: process.env.APPLE_BUNDLE_ID,
+    });
+
+    const providerId = payload.sub as string;
+    const email = payload.email as string | undefined;
+    const emailVerified = payload.email_verified === 'true';
+
+    const updateData: {
+      email?: string;
+      name?: string;
+      timezone?: string;
+    } = { timezone };
+
+    if (email && emailVerified) updateData.email = email;
+    if (fullName) updateData.name = fullName;
+
+    const user = await User.findOneAndUpdate(
+      { provider: 'apple', providerId },
+      {
+        $setOnInsert: {
+          provider: 'apple',
+          providerId,
+        },
+        $set: updateData,
+      },
+      { new: true, upsert: true }
+    );
+
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.registerDeviceAndGenerateRefreshToken(deviceId);
+
+    res.json({ accessToken, refreshToken });
+  } catch (error) {
+    res.status(401).json({ message: 'Invalid Apple identity token' });
   }
 });
 

@@ -36,10 +36,10 @@ export interface UserStats {
 }
 
 interface User extends Document {
-  provider: 'google' | 'facebook';
+  provider: 'google' | 'facebook' | 'apple';
   providerId: string;
   name: string;
-  email: string;
+  email?: string;
   picture?: string;
   timezone: string;
   mainLang?: LanguageCodeValue;
