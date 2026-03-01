@@ -30,6 +30,7 @@ router.get('/users', authenticate, async (req: Request, res: Response) => {
       mainLang: user.mainLang,
       translationLang: user.translationLang,
       stats: user.stats,
+      languageLevels: user.languageLevels
     });
   } catch (err) {
     console.error("Error fetching user data", err);
@@ -37,9 +38,57 @@ router.get('/users', authenticate, async (req: Request, res: Response) => {
   }
 });
 
+router.put('/language-levels', authenticate, async (req: Request, res: Response) => {
+  const userId = req.userId;
+  const { languageLevels } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ message: 'User not found' });
+  }
+
+  if (!Array.isArray(languageLevels)) {
+    return res.status(400).json({ message: 'languageLevels must be an array' });
+  }
+
+  try {
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.languageLevels = user.languageLevels || [];
+
+    for (const incoming of languageLevels) {
+      const existingIndex = user.languageLevels.findIndex(
+        (l: any) => l.language === incoming.language
+      );
+
+      if (existingIndex >= 0) {
+        user.languageLevels[existingIndex].level = incoming.level;
+      } else {
+        user.languageLevels.push({
+          language: incoming.language,
+          level: incoming.level,
+        });
+      }
+    }
+
+    await user.save();
+
+    res.json({
+      languageLevels: user.languageLevels,
+    });
+
+  } catch (err) {
+    console.error('Error updating language levels', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 router.put('/languages', authenticate, async (req: Request, res: Response) => {
   const userId = req.userId;
-  const { mainLang, translationLang } = req.body;
+  const { mainLang, translationLang, level } = req.body;
 
   if (!userId) {
     return res.status(400).json({ message: 'User not found' });
@@ -58,6 +107,8 @@ router.put('/languages', authenticate, async (req: Request, res: Response) => {
 
     user.mainLang = mainLang;
     user.translationLang = translationLang;
+    user.languageLevels = [{ language: mainLang, level }];
+
     await user.save();
 
     res.json({

@@ -1,6 +1,6 @@
 import { Document, model, Schema } from 'mongoose';
 import jwt from 'jsonwebtoken';
-import { LanguageCodeValue } from "../../constants/languageCodes";
+import { LanguageCode, LanguageCodeValue } from "../../constants/languageCodes";
 import { SessionModel, SessionModelValue } from "../../constants/sessionModels";
 
 interface RefreshToken {
@@ -35,6 +35,11 @@ export interface UserStats {
   averageScore: number;
 }
 
+export type LanguageLevel = {
+  language: LanguageCodeValue;
+  level: 1 | 2 | 3 | 4 | 5;
+}
+
 interface User extends Document {
   provider: 'google' | 'facebook' | 'apple';
   providerId: string;
@@ -45,6 +50,7 @@ interface User extends Document {
   mainLang?: LanguageCodeValue;
   translationLang?: LanguageCodeValue;
   stats: UserStats;
+  languageLevels: LanguageLevel[];
   sessionModel: SessionModelValue;
   notifications: Notifications;
   refreshTokens: RefreshToken[];
@@ -54,6 +60,22 @@ interface User extends Document {
   extendRefreshToken(oldToken: string, deviceId: string): string;
   revokeTokensRelatedWithDeviceId(deviceId: string): void;
 }
+
+const languageLevelSchema = new Schema(
+  {
+    language: {
+      type: String,
+      enum: Object.values(LanguageCode),
+      required: true,
+    },
+    level: {
+      type: Number,
+      enum: [1, 2, 3, 4, 5],
+      required: true,
+    },
+  },
+  { _id: false }
+);
 
 const userSchema = new Schema<User>({
   provider: { type: String, enum: ['google', 'facebook'], required: true },
@@ -69,6 +91,10 @@ const userSchema = new Schema<User>({
     sessionCount: { type: Number, default: 0 },
     evaluationCount: { type: Number, default: 0 },
     averageScore: { type: Number, default: 0 },
+  },
+  languageLevels: {
+    type: [languageLevelSchema],
+    default: [],
   },
   sessionModel: { type: String, enum: Object.values(SessionModel), default: SessionModel.Hybrid, required: true },
   notifications: {
