@@ -18,17 +18,22 @@ import { mapArrayToLemmaTranslations } from "./utils/mapToLemmaTranslation";
 import { createSuggestion } from "./utils/fabrics/createSuggestion";
 import { createLemmaTranslation } from "./utils/fabrics/createLemmaTranslation";
 import { LemmaAttrWithId } from "../../types/models/LemmaAttr";
+import User from "../../models/core/User";
 
 export const generateSuggestionsInBackground = async (userId: string, mainLang: LanguageCodeValue, translationLang: LanguageCodeValue) => {
   const key = `${userId}_${mainLang}_${translationLang}`;
 
   await withGenerationLock(key, async () => {
+    const user = await User.findOne({ _id: userId });
+    const level = user?.languageLevels.find((l) => l.language === mainLang)?.level || 1;
     const suggestionsRepo: SuggestionsRepository = new FastAPISuggestionsRepository();
+
     const suggestionsResponse = await suggestionsRepo.getUserSuggestions({
       userId,
       mainLang,
       translationLang,
-      limit: 30
+      limit: 30,
+      level
     });
 
     const { suggested_lemmas_ids: suggestedLemmasIds, median_freq: medianFreq } = suggestionsResponse;

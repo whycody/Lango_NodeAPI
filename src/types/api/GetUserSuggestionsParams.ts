@@ -5,4 +5,5 @@ export interface GetUserSuggestionsParams {
   mainLang: LanguageCodeValue;
   translationLang: LanguageCodeValue;
   limit: number;
+  level: number;
 }

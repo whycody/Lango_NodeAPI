@@ -11,12 +11,13 @@ export class FastAPISuggestionsRepository implements SuggestionsRepository {
   }
 
   async getUserSuggestions(params: GetUserSuggestionsParams): Promise<GetUserSuggestionsResponse> {
-    const { userId, mainLang, translationLang, limit } = params;
+    const { userId, mainLang, translationLang, limit, level } = params;
     return this.client.get<GetUserSuggestionsResponse>("/suggestions", {
       user_id: userId,
       main_lang: mainLang,
       translation_lang: translationLang,
       limit,
+      level
     });
   }
 }

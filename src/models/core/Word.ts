@@ -28,7 +28,7 @@ const wordSchema = new Schema<Word>({
   updatedAt: { type: Date, default: Date.now },
   active: { type: Boolean, default: true },
   removed: { type: Boolean, default: false },
-  lemmas: { type: [String], select: false },
+  lemmas: { type: [String], select: false, required: false, default: null },
 }, {
   timestamps: { updatedAt: 'updatedAt', createdAt: false },
 });
