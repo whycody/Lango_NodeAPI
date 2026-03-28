@@ -30,7 +30,8 @@ router.get('/users', authenticate, async (req: Request, res: Response) => {
       mainLang: user.mainLang,
       translationLang: user.translationLang,
       stats: user.stats,
-      languageLevels: user.languageLevels
+      languageLevels: user.languageLevels,
+      suggestionsInSession: user.suggestionsInSession,
     });
   } catch (err) {
     console.error("Error fetching user data", err);
@@ -83,6 +84,23 @@ router.put('/language-levels', authenticate, async (req: Request, res: Response)
   } catch (err) {
     console.error('Error updating language levels', err);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.patch('/suggestions-in-session', authenticate, async (req: Request, res: Response) => {
+  const { enabled } = req.body;
+  if (enabled === undefined) return res.status(400).json({ message: 'enabled is required' });
+
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.userId,
+      { suggestionsInSession: enabled },
+      { new: true, select: 'suggestionsInSession' }
+    );
+    res.json(user?.suggestionsInSession);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Failed to update suggestions in session' });
   }
 });
 

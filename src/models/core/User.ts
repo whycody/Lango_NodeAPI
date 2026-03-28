@@ -50,6 +50,7 @@ interface User extends Document {
   mainLang?: LanguageCodeValue;
   translationLang?: LanguageCodeValue;
   stats: UserStats;
+  suggestionsInSession: boolean;
   languageLevels: LanguageLevel[];
   sessionModel: SessionModelValue;
   notifications: Notifications;
@@ -97,6 +98,7 @@ const userSchema = new Schema<User>({
     default: [],
   },
   sessionModel: { type: String, enum: Object.values(SessionModel), default: SessionModel.Hybrid, required: true },
+  suggestionsInSession: { type: Boolean, default: true },
   notifications: {
     enabled: { type: Boolean, default: true },
     neutralTime: {
