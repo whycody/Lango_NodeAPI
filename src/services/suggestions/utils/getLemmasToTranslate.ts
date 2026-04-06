@@ -8,45 +8,60 @@ export async function getLemmasIdsToTranslate(
   mainLang: LanguageCodeValue,
   translationLang: LanguageCodeValue,
   medianFreq: number,
-  limit: number = 30
+  limit: number = 30,
 ): Promise<string[]> {
-  const lemmaObjectIds = lemmaIds.map(id => new Types.ObjectId(id));
+  const lemmaObjectIds = lemmaIds.map((id) => new Types.ObjectId(id));
 
-  const translatedDocs = await LemmaTranslation.find({
+  const lemmaTranslations = await LemmaTranslation.find({
     lemmaId: { $in: lemmaObjectIds },
     translationLang,
-  }).lean()
+  }).lean();
 
-  const translatedIds = new Set(translatedDocs.filter((t) => !!t.translation).map((doc) => doc.lemmaId.toString()))
-  const untranslatedIds = lemmaIds.filter((id) => !translatedDocs.some((doc) => doc.lemmaId.toString() === id))
+  const alreadyTranslatedLemmaIds = new Set(
+    lemmaTranslations.map((doc) => doc.lemmaId.toString()),
+  );
 
-  if (translatedIds.size === limit) return []
+  const validLemmaTranslationsCount = lemmaTranslations.filter(
+    (t) => !!t.translation,
+  ).length;
+  const untranslatedLemmaIds = lemmaIds.filter(
+    (id) => !alreadyTranslatedLemmaIds.has(id),
+  );
 
-  const additionalNeeded = Math.max(limit - untranslatedIds.length, 0)
+  if (validLemmaTranslationsCount === limit) return [];
 
-  let additionalIds: string[] = []
-  if (additionalNeeded > 0) {
-    const allTranslatedLemmas = await LemmaTranslation.find({
-      translationLang
-    }).lean();
+  const additionalTranslationsNeeded = Math.max(
+    limit - untranslatedLemmaIds.length,
+    0,
+  );
+  let lemmasIdsToTranslate: string[] = [];
 
-    const allTranslatedLemmasIds = allTranslatedLemmas.map((l) => l.lemmaId)
+  if (additionalTranslationsNeeded > 0) {
+    const alreadyTranslatedLemmaIds = await LemmaTranslation.distinct(
+      "lemmaId",
+      { translationLang },
+    );
 
-    const additionalCandidates = await Lemma.find({
-      lang: mainLang,
-      _id: { $nin: allTranslatedLemmasIds },
-    }).lean()
+    const additionalCandidates = await Lemma.aggregate([
+      {
+        $match: {
+          lang: mainLang,
+          _id: { $nin: alreadyTranslatedLemmaIds },
+        },
+      },
+      {
+        $addFields: {
+          freqDistance: {
+            $abs: { $subtract: [{ $ifNull: ["$freq_z", 0] }, medianFreq] },
+          },
+        },
+      },
+      { $sort: { freqDistance: 1 } },
+      { $limit: additionalTranslationsNeeded },
+    ]);
 
-    additionalCandidates.sort(
-      (a, b) =>
-        Math.abs((a.freq_z ?? 0) - medianFreq) -
-        Math.abs((b.freq_z ?? 0) - medianFreq)
-    )
-
-    additionalIds = additionalCandidates
-      .slice(0, additionalNeeded)
-      .map((l) => l._id.toString())
+    lemmasIdsToTranslate = additionalCandidates.map((l) => l._id.toString());
   }
 
-  return [...untranslatedIds, ...additionalIds]
+  return [...untranslatedLemmaIds, ...lemmasIdsToTranslate];
 }

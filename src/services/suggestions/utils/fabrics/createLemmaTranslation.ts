@@ -1,10 +1,11 @@
 import { LemmaTranslationAttr } from "../../../../types/models/LemmaTranslationAttr";
 import { PartialBy } from "../../../../types/helpers/PartialBy";
 
-type LemmaTranslationDefaults = "translation" | "addCount" | "skipCount";
+type LemmaTranslationDefaults = "addCount" | "skipCount";
 
-export const createLemmaTranslation = (attrs: PartialBy<LemmaTranslationAttr, LemmaTranslationDefaults>): LemmaTranslationAttr => ({
-  translation: null,
+export const createLemmaTranslation = (
+  attrs: PartialBy<LemmaTranslationAttr, LemmaTranslationDefaults>,
+): LemmaTranslationAttr => ({
   addCount: 0,
   skipCount: 0,
   ...attrs,

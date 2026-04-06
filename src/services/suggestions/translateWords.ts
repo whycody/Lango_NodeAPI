@@ -22,7 +22,7 @@ export const translateWords = async (
 
   console.log("Calling with prompt:", prompt);
 
-  const gptResponse = await gptClient.chat<string>(prompt);
+  const gptResponse = await gptClient.chat(prompt);
 
   console.log("GPT Response: ", gptResponse.data);
 

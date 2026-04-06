@@ -27,7 +27,7 @@ export const matchTranslationsToLemmas = (
         ? `${item.sourceArticle}${item.source}`
         : item.source,
       example: item.example,
-      translation: item.translations[0],
+      translation: item.translations.join(", ") ?? "",
       prefix: lemma.type === "subst" ? item.sourceArticle : null,
     });
   }

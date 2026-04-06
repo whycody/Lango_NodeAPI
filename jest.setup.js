@@ -5,3 +5,8 @@ jest.mock('./src/services/clients/GPTClient', () => {
     }))
   };
 });
+
+jest.mock('jose', () => ({
+  createRemoteJWKSet: jest.fn(),
+  jwtVerify: jest.fn(),
+}));
