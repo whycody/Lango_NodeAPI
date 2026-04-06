@@ -6,41 +6,51 @@ import { LanguageCodeValue } from "../../constants/languageCodes";
 
 const gptClient = new GPTClient();
 
+function tryParse(data: string | null): TranslationItem[] | null {
+  try {
+    return JSON.parse(data || "[]");
+  } catch {
+    return null;
+  }
+}
+
 export const translateWords = async (
   mainLangCode: LanguageCodeValue,
   translationLangCode: LanguageCodeValue,
   words: string[],
-): Promise<{
-  translations: TranslationItem[];
-  fetchMetadata: GPTReportAttr;
-}> => {
+) => {
   const prompt = buildTranslatingWordsPrompt(
     mainLangCode,
     translationLangCode,
     words,
   );
 
-  console.log("Calling with prompt:", prompt);
+  let response = await gptClient.chat(prompt);
+  let parsed = tryParse(response.data);
 
-  const gptResponse = await gptClient.chat(prompt);
+  if (!parsed) {
+    console.error("Failed to parse GPT response, retrying...", response.data);
+    response = await gptClient.chat(prompt);
+    parsed = tryParse(response.data);
+  }
 
-  console.log("GPT Response: ", gptResponse.data);
+  if (!parsed) {
+    console.error("Retry failed, returning empty translations.", response.data);
+    parsed = [];
+  }
 
-  const parsed: TranslationItem[] = JSON.parse(gptResponse.data || "[]");
-
-  return {
-    translations: parsed,
-    fetchMetadata: {
-      prompt,
-      response: gptResponse.data || "",
-      words: parsed,
-      mainLang: mainLangCode,
-      translationLang: translationLangCode,
-      totalWords: words.length,
-      tokensInput: gptResponse.tokensInput,
-      tokensOutput: gptResponse.tokensOutput,
-      costUSD: gptResponse.costUSD,
-      aiModel: "gpt-4o-mini",
-    },
+  const metadata: GPTReportAttr = {
+    prompt,
+    response: response.data || "",
+    words: parsed,
+    mainLang: mainLangCode,
+    translationLang: translationLangCode,
+    totalWords: words.length,
+    tokensInput: response.tokensInput,
+    tokensOutput: response.tokensOutput,
+    costUSD: response.costUSD,
+    aiModel: "gpt-4o-mini",
   };
+
+  return { translations: parsed, fetchMetadata: metadata };
 };

@@ -2,13 +2,14 @@ import { LanguageCodeValue } from "../../../constants/languageCodes";
 import LemmaTranslation from "../../../models/lemmas/LemmaTranslation";
 import Lemma from "../../../models/lemmas/Lemma";
 import { Types } from "mongoose";
+import { SUGGESTIONS_TO_GENERATE } from "../../../constants/suggestions";
 
 export async function getLemmasIdsToTranslate(
   lemmaIds: string[],
   mainLang: LanguageCodeValue,
   translationLang: LanguageCodeValue,
   medianFreq: number,
-  limit: number = 30,
+  limit: number = SUGGESTIONS_TO_GENERATE,
 ): Promise<string[]> {
   const lemmaObjectIds = lemmaIds.map((id) => new Types.ObjectId(id));
 

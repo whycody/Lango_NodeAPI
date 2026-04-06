@@ -19,6 +19,7 @@ import { createSuggestion } from "./utils/fabrics/createSuggestion";
 import { createLemmaTranslation } from "./utils/fabrics/createLemmaTranslation";
 import { LemmaAttrWithId } from "../../types/models/LemmaAttr";
 import User from "../../models/core/User";
+import { SUGGESTIONS_TO_GENERATE } from "../../constants/suggestions";
 
 export const generateSuggestionsInBackground = async (
   userId: string,
@@ -38,7 +39,7 @@ export const generateSuggestionsInBackground = async (
       userId,
       mainLang,
       translationLang,
-      limit: 30,
+      limit: SUGGESTIONS_TO_GENERATE,
       level,
     });
 
@@ -56,7 +57,7 @@ export const generateSuggestionsInBackground = async (
       mainLang,
       translationLang,
       medianFreq,
-      30,
+      SUGGESTIONS_TO_GENERATE,
     );
 
     const lemmasToTranslate = await Lemma.find({
