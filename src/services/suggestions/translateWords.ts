@@ -1,8 +1,7 @@
 import { GPTClient } from "../clients/GPTClient";
-import { WordPair } from "../../types/shared/WordPair";
 import { GPTReportAttr } from "../../types/models/GPTReportAttr";
+import { TranslationItem } from "../../types/shared/TranslationItem";
 import { buildTranslatingWordsPrompt } from "../../utils/promptBuilder";
-import { parseWordPairs } from "../../utils/wordParser";
 import { LanguageCodeValue } from "../../constants/languageCodes";
 
 const gptClient = new GPTClient();
@@ -12,7 +11,7 @@ export const translateWords = async (
   translationLangCode: LanguageCodeValue,
   words: string[],
 ): Promise<{
-  wordPairs: WordPair[];
+  translations: TranslationItem[];
   fetchMetadata: GPTReportAttr;
 }> => {
   const prompt = buildTranslatingWordsPrompt(
@@ -27,14 +26,14 @@ export const translateWords = async (
 
   console.log("GPT Response: ", gptResponse.data);
 
-  const responseWords = parseWordPairs(gptResponse.data || "");
+  const parsed: TranslationItem[] = JSON.parse(gptResponse.data || "[]");
 
   return {
-    wordPairs: responseWords,
+    translations: parsed,
     fetchMetadata: {
       prompt,
       response: gptResponse.data || "",
-      words: responseWords,
+      words: parsed,
       mainLang: mainLangCode,
       translationLang: translationLangCode,
       totalWords: words.length,

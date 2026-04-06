@@ -9,6 +9,6 @@ export type LemmaAttr = {
   prefix: string;
   freq: number;
   freq_z: number;
-}
+};
 
 export type LemmaAttrWithId = LemmaAttr & { _id: Types.ObjectId | string };

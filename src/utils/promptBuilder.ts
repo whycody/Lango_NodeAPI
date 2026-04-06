@@ -42,7 +42,7 @@ export const buildTranslatingWordsPrompt = (
     base += `For substantives include correct articles specified for ${translationLang.languageName} language: ${translationLang.definedArticles}. `;
   }
 
-  base += `Return JSON array: [ { "source": string, "sourceWordArticle": string | null, "isValid": boolean, "translations": [string], "example": { "source": string, "target": string } | null } ]`;
+  base += `Return JSON array: [ { "source": string, "sourceArticle": string | null, "isValid": boolean, "translations": [string], "example": { "source": string, "target": string } | null } ]`;
 
   base += `Input: \n`;
 

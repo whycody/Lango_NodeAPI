@@ -1,10 +1,10 @@
-import { WordPair } from "../shared/WordPair";
+import { TranslationItem } from "../shared/TranslationItem";
 import { LanguageCodeValue } from "../../constants/languageCodes";
 
 export type GPTReportAttr = {
   prompt: string;
   response: string;
-  words: WordPair[];
+  words: TranslationItem[];
   mainLang: LanguageCodeValue;
   translationLang: LanguageCodeValue;
   totalWords: number;
@@ -12,4 +12,4 @@ export type GPTReportAttr = {
   tokensOutput?: number;
   costUSD?: number;
   aiModel: string;
-}
+};

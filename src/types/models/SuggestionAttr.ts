@@ -7,9 +7,13 @@ export type SuggestionAttr = {
   translation: string;
   lemmaId: Types.ObjectId | string;
   lemma: string;
+  example: {
+    source: string;
+    target: string;
+  } | null;
   mainLang: LanguageCodeValue;
   translationLang: LanguageCodeValue;
   displayCount: number;
   skipped: boolean;
   added: boolean;
-}
+};

@@ -1,36 +1,36 @@
-import { WordPair } from "../../../types/shared/WordPair"
-import { LanguageCodeValue } from "../../../constants/languageCodes"
-import { languages } from "../../../constants/languages"
-import { MatchPair } from "../../../types/shared/MatchPair"
-import { extractPrefix } from "../../utils/extractPrefix";
+import { TranslationItem } from "../../../types/shared/TranslationItem";
+import { MatchPair } from "../../../types/shared/MatchPair";
 import { normalizeWord } from "../../utils/normalizeWord";
 import { LemmaAttrWithId } from "../../../types/models/LemmaAttr";
 
-export const matchWordPairsToLemmas = (wordPairs: WordPair[], lemmas: LemmaAttrWithId[], mainLangCode: LanguageCodeValue) => {
-  const mainLanguage = languages[mainLangCode];
+export const matchTranslationsToLemmas = (
+  translations: TranslationItem[],
+  lemmas: LemmaAttrWithId[],
+) => {
+  const lemmaMap = new Map(
+    lemmas.map((lemma) => [lemma.lemma.toLowerCase(), lemma]),
+  );
+
   const matchedPairs: MatchPair[] = [];
 
-  const articles = mainLanguage.definedArticles || [];
+  for (const item of translations) {
+    const normalizedSource = normalizeWord(item.source).toLowerCase();
+    const lemma = lemmaMap.get(normalizedSource);
 
-  for (const wp of wordPairs) {
-    const normalizedWord = normalizeWord(wp.word);
+    if (!lemma) continue;
 
-    for (const lemma of lemmas) {
-      const lemmaLower = lemma.lemma.toLowerCase();
-      const { articleFound, coreWord } = extractPrefix(normalizedWord, lemmaLower, articles);
-
-      if (coreWord.toLowerCase() === lemmaLower) {
-        matchedPairs.push({
-          lemmaId: lemma._id.toString(),
-          lemma: lemma.lemma,
-          word: wp.word,
-          translation: wp.translation!,
-          prefix: lemma.type === "subst" ? articleFound : null,
-        });
-        break;
-      }
-    }
+    matchedPairs.push({
+      lemmaId: lemma._id.toString(),
+      lemma: lemma.lemma,
+      isValid: item.isValid,
+      word: item.sourceArticle
+        ? `${item.sourceArticle}${item.source}`
+        : item.source,
+      example: item.example,
+      translation: item.translations[0],
+      prefix: lemma.type === "subst" ? item.sourceArticle : null,
+    });
   }
 
   return matchedPairs;
-}
+};
