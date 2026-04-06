@@ -1,7 +1,11 @@
-import { Schema } from "mongoose";
-import { WordPair } from "../types/shared/WordPair";
+import { Schema } from 'mongoose';
 
-export const wordPairSchema = new Schema<WordPair>({
-  word: { type: String, required: true },
-  translation: { type: String, required: false, default: null },
-}, { _id: false });
+import { WordPair } from '../types/shared/WordPair';
+
+export const wordPairSchema = new Schema<WordPair>(
+    {
+        translation: { default: null, required: false, type: String },
+        word: { required: true, type: String },
+    },
+    { _id: false },
+);
