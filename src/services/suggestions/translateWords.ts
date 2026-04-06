@@ -7,17 +7,25 @@ import { LanguageCodeValue } from "../../constants/languageCodes";
 
 const gptClient = new GPTClient();
 
-export const translateWords = async (mainLangCode: LanguageCodeValue, translationLangCode: LanguageCodeValue, words: string[]): Promise<{
-  wordPairs: WordPair[],
-  fetchMetadata: GPTReportAttr
+export const translateWords = async (
+  mainLangCode: LanguageCodeValue,
+  translationLangCode: LanguageCodeValue,
+  words: string[],
+): Promise<{
+  wordPairs: WordPair[];
+  fetchMetadata: GPTReportAttr;
 }> => {
-  const prompt = buildTranslatingWordsPrompt(mainLangCode, translationLangCode, words);
+  const prompt = buildTranslatingWordsPrompt(
+    mainLangCode,
+    translationLangCode,
+    words,
+  );
 
-  console.log('Calling with prompt:', prompt);
+  console.log("Calling with prompt:", prompt);
 
   const gptResponse = await gptClient.chat<string>(prompt);
 
-  console.log('GPT Response: ', gptResponse.data);
+  console.log("GPT Response: ", gptResponse.data);
 
   const responseWords = parseWordPairs(gptResponse.data || "");
 
@@ -33,7 +41,7 @@ export const translateWords = async (mainLangCode: LanguageCodeValue, translatio
       tokensInput: gptResponse.tokensInput,
       tokensOutput: gptResponse.tokensOutput,
       costUSD: gptResponse.costUSD,
-      aiModel: 'gpt-4o-mini',
-    }
+      aiModel: "gpt-4o-mini",
+    },
   };
 };
