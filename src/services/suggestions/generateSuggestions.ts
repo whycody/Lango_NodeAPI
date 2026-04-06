@@ -3,7 +3,7 @@ import { LanguageCodeValue } from "../../constants/languageCodes";
 import Lemma from "../../models/lemmas/Lemma";
 import Suggestion from "../../models/core/Suggestion";
 import { getLemmasIdsToTranslate } from "./utils/getLemmasToTranslate";
-import { matchTranslationsToLemmas } from "./utils/matchWordPairsToLemmas";
+import { matchTranslationsToLemmas } from "./utils/matchTranslationsToLemmas";
 import { translateWords } from "./translateWords";
 import { saveGPTReport } from "./utils/reports/saveGPTReport";
 import { saveSuggestionsReport } from "./utils/reports/saveSuggestionsReport";

@@ -3,6 +3,11 @@ import { MatchPair } from "../../../types/shared/MatchPair";
 import { normalizeWord } from "../../utils/normalizeWord";
 import { LemmaAttrWithId } from "../../../types/models/LemmaAttr";
 
+const normalizeArticle = (article: string): string => {
+  if (article.endsWith("'")) return article;
+  return article.trimEnd() + " ";
+};
+
 export const matchTranslationsToLemmas = (
   translations: TranslationItem[],
   lemmas: LemmaAttrWithId[],
@@ -19,16 +24,18 @@ export const matchTranslationsToLemmas = (
 
     if (!lemma) continue;
 
+    const article = item.sourceArticle
+      ? normalizeArticle(item.sourceArticle)
+      : null;
+
     matchedPairs.push({
       lemmaId: lemma._id.toString(),
       lemma: lemma.lemma,
       isValid: item.isValid,
-      word: item.sourceArticle
-        ? `${item.sourceArticle}${item.source}`
-        : item.source,
+      word: article ? `${article}${item.source}` : item.source,
       example: item.example,
       translation: item.translations.join(", ") ?? "",
-      prefix: lemma.type === "subst" ? item.sourceArticle : null,
+      prefix: lemma.type === "subst" ? article : null,
     });
   }
 

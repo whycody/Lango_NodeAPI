@@ -1,6 +1,6 @@
 import { LemmaAttrWithId } from "../../../../types/models/LemmaAttr";
 import { TranslationItem } from "../../../../types/shared/TranslationItem";
-import { matchTranslationsToLemmas } from "../matchWordPairsToLemmas";
+import { matchTranslationsToLemmas } from "../matchTranslationsToLemmas";
 
 describe("matchTranslationsToLemmas", () => {
   const lemmas: LemmaAttrWithId[] = [
@@ -226,6 +226,58 @@ describe("matchTranslationsToLemmas", () => {
         translation: "pies",
         example: { source: "Il cane corre.", target: "Pies biega." },
         prefix: "il ",
+      },
+    ]);
+  });
+
+  it("normalizes article without space by adding space", () => {
+    const translations: TranslationItem[] = [
+      {
+        source: "cane",
+        sourceArticle: "il",
+        isValid: true,
+        translations: ["pies"],
+        example: null,
+      },
+    ];
+
+    const result = matchTranslationsToLemmas(translations, lemmas);
+
+    expect(result).toEqual([
+      {
+        lemmaId: "2",
+        lemma: "cane",
+        isValid: true,
+        word: "il cane",
+        translation: "pies",
+        example: null,
+        prefix: "il ",
+      },
+    ]);
+  });
+
+  it("does not add space after apostrophe article", () => {
+    const translations: TranslationItem[] = [
+      {
+        source: "amico",
+        sourceArticle: "l'",
+        isValid: true,
+        translations: ["przyjaciel"],
+        example: null,
+      },
+    ];
+
+    const result = matchTranslationsToLemmas(translations, lemmas);
+
+    expect(result).toEqual([
+      {
+        lemmaId: "1",
+        lemma: "amico",
+        isValid: true,
+        word: "l'amico",
+        translation: "przyjaciel",
+        example: null,
+        prefix: "l'",
       },
     ]);
   });
