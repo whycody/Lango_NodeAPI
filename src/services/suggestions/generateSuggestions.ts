@@ -1,221 +1,211 @@
-import { FastAPISuggestionsRepository } from "./repositories/FastAPISuggestionRepository";
-import { LanguageCodeValue } from "../../constants/languageCodes";
-import Lemma from "../../models/lemmas/Lemma";
-import Suggestion from "../../models/core/Suggestion";
-import { getLemmasIdsToTranslate } from "./utils/getLemmasToTranslate";
-import { matchTranslationsToLemmas } from "./utils/matchTranslationsToLemmas";
-import { translateWords } from "./translateWords";
-import { saveGPTReport } from "./utils/reports/saveGPTReport";
-import { saveSuggestionsReport } from "./utils/reports/saveSuggestionsReport";
-import { MatchPair } from "../../types/shared/MatchPair";
-import { LemmaUpdate } from "../../types/shared/LemmaUpdate";
-import { LemmaTranslationAttr } from "../../types/models/LemmaTranslationAttr";
-import LemmaTranslation from "../../models/lemmas/LemmaTranslation";
-import { SuggestionAttr } from "../../types/models/SuggestionAttr";
-import { SuggestionsRepository } from "../../types/api/SuggestionsRepository";
-import { withGenerationLock } from "./utils/withGenerationLock";
-import { mapArrayToLemmaTranslations } from "./utils/mapToLemmaTranslation";
-import { createSuggestion } from "./utils/fabrics/createSuggestion";
-import { createLemmaTranslation } from "./utils/fabrics/createLemmaTranslation";
-import { LemmaAttrWithId } from "../../types/models/LemmaAttr";
-import User from "../../models/core/User";
-import { SUGGESTIONS_TO_GENERATE } from "../../constants/suggestions";
+import { LanguageCodeValue } from '../../constants/languageCodes';
+import { SUGGESTIONS_TO_GENERATE } from '../../constants/suggestions';
+import Suggestion from '../../models/core/Suggestion';
+import User from '../../models/core/User';
+import Lemma from '../../models/lemmas/Lemma';
+import LemmaTranslation from '../../models/lemmas/LemmaTranslation';
+import { SuggestionsRepository } from '../../types/api/SuggestionsRepository';
+import { LemmaAttrWithId } from '../../types/models/LemmaAttr';
+import { LemmaTranslationAttr } from '../../types/models/LemmaTranslationAttr';
+import { SuggestionAttr } from '../../types/models/SuggestionAttr';
+import { LemmaUpdate } from '../../types/shared/LemmaUpdate';
+import { MatchPair } from '../../types/shared/MatchPair';
+import { FastAPISuggestionsRepository } from './repositories/FastAPISuggestionRepository';
+import { translateWords } from './translateWords';
+import { createLemmaTranslation } from './utils/fabrics/createLemmaTranslation';
+import { createSuggestion } from './utils/fabrics/createSuggestion';
+import { getLemmasIdsToTranslate } from './utils/getLemmasToTranslate';
+import { mapArrayToLemmaTranslations } from './utils/mapToLemmaTranslation';
+import { matchTranslationsToLemmas } from './utils/matchTranslationsToLemmas';
+import { saveGPTReport } from './utils/reports/saveGPTReport';
+import { saveSuggestionsReport } from './utils/reports/saveSuggestionsReport';
+import { withGenerationLock } from './utils/withGenerationLock';
 
 export const generateSuggestionsInBackground = async (
-  userId: string,
-  mainLang: LanguageCodeValue,
-  translationLang: LanguageCodeValue,
+    userId: string,
+    mainLang: LanguageCodeValue,
+    translationLang: LanguageCodeValue,
 ) => {
-  const key = `${userId}_${mainLang}_${translationLang}`;
+    const key = `${userId}_${mainLang}_${translationLang}`;
 
-  await withGenerationLock(key, async () => {
-    const user = await User.findOne({ _id: userId });
-    const level =
-      user?.languageLevels.find((l) => l.language === mainLang)?.level || 1;
-    const suggestionsRepo: SuggestionsRepository =
-      new FastAPISuggestionsRepository();
+    await withGenerationLock(key, async () => {
+        const user = await User.findOne({ _id: userId });
+        const level = user?.languageLevels.find(l => l.language === mainLang)?.level || 1;
+        const suggestionsRepo: SuggestionsRepository = new FastAPISuggestionsRepository();
 
-    const suggestionsResponse = await suggestionsRepo.getUserSuggestions({
-      userId,
-      mainLang,
-      translationLang,
-      limit: SUGGESTIONS_TO_GENERATE,
-      level,
-    });
-
-    const {
-      suggested_lemmas_ids: suggestedLemmasIds,
-      median_freq: medianFreq,
-    } = suggestionsResponse;
-
-    const suggestedLemmas = await Lemma.find({
-      _id: { $in: suggestedLemmasIds },
-    }).lean();
-
-    const lemmasIdsToTranslate = await getLemmasIdsToTranslate(
-      suggestedLemmasIds,
-      mainLang,
-      translationLang,
-      medianFreq,
-      SUGGESTIONS_TO_GENERATE,
-    );
-
-    const lemmasToTranslate = await Lemma.find({
-      _id: { $in: lemmasIdsToTranslate },
-    }).lean<LemmaAttrWithId[]>();
-
-    const translatedLemmasTranslations = await LemmaTranslation.find({
-      lemmaId: { $in: suggestedLemmasIds },
-      translationLang,
-      translation: { $ne: null },
-    }).lean();
-
-    const translationMap = new Map(
-      translatedLemmasTranslations.map((t) => [
-        t.lemmaId.toString(),
-        { translation: t.translation, example: t.example ?? null },
-      ]),
-    );
-
-    const suggestionsToInsert: SuggestionAttr[] = suggestedLemmas
-      .filter((l) => translationMap.has(l._id.toString()))
-      .map((l) => {
-        const entry = translationMap.get(l._id.toString())!;
-        return createSuggestion({
-          userId,
-          lemma: l.lemma,
-          lemmaId: l._id.toString(),
-          word: l.prefix ? `${l.prefix}${l.lemma}` : l.lemma,
-          translation: entry.translation || "",
-          example: entry.example,
-          mainLang,
-          translationLang,
+        const suggestionsResponse = await suggestionsRepo.getUserSuggestions({
+            level,
+            limit: SUGGESTIONS_TO_GENERATE,
+            mainLang,
+            translationLang,
+            userId,
         });
-      });
 
-    let translationsToInsert: LemmaTranslationAttr[] = [];
-    let lemmasToUpdate: LemmaUpdate[] = [];
+        const { median_freq: medianFreq, suggested_lemmas_ids: suggestedLemmasIds } =
+            suggestionsResponse;
 
-    if (lemmasToTranslate.length > 0) {
-      const wordsToTranslate = lemmasToTranslate.map((l) => l.lemma);
-      const { translations, fetchMetadata } = await translateWords(
-        mainLang,
-        translationLang,
-        wordsToTranslate,
-      );
+        const suggestedLemmas = await Lemma.find({
+            _id: { $in: suggestedLemmasIds },
+        }).lean();
 
-      const matchedPairs = matchTranslationsToLemmas(
-        translations,
-        lemmasToTranslate,
-      );
+        const lemmasIdsToTranslate = await getLemmasIdsToTranslate(
+            suggestedLemmasIds,
+            mainLang,
+            translationLang,
+            medianFreq,
+            SUGGESTIONS_TO_GENERATE,
+        );
 
-      await saveGPTReport(fetchMetadata);
+        const lemmasToTranslate = await Lemma.find({
+            _id: { $in: lemmasIdsToTranslate },
+        }).lean<LemmaAttrWithId[]>();
 
-      const prepared = prepareInsertData(
-        matchedPairs,
-        suggestedLemmasIds,
-        userId,
-        mainLang,
-        translationLang,
-      );
+        const translatedLemmasTranslations = await LemmaTranslation.find({
+            lemmaId: { $in: suggestedLemmasIds },
+            translation: { $ne: null },
+            translationLang,
+        }).lean();
 
-      translationsToInsert.push(...prepared.translationsToInsert);
-      suggestionsToInsert.push(...prepared.suggestionsToInsert);
-      lemmasToUpdate.push(...prepared.lemmasToUpdate);
-    }
+        const translationMap = new Map(
+            translatedLemmasTranslations.map(t => [
+                t.lemmaId.toString(),
+                { example: t.example ?? null, translation: t.translation },
+            ]),
+        );
 
-    const insertedTranslations = translationsToInsert.map((t) => ({
-      word:
-        lemmasToTranslate.find((l) => l._id.toString() === t.lemmaId)?.lemma ||
-        "",
-      translation: t.translation,
-    }));
+        const suggestionsToInsert: SuggestionAttr[] = suggestedLemmas
+            .filter(l => translationMap.has(l._id.toString()))
+            .map(l => {
+                const entry = translationMap.get(l._id.toString())!;
+                return createSuggestion({
+                    example: entry.example,
+                    lemma: l.lemma,
+                    lemmaId: l._id.toString(),
+                    mainLang,
+                    translation: entry.translation || '',
+                    translationLang,
+                    userId,
+                    word: l.prefix ? `${l.prefix}${l.lemma}` : l.lemma,
+                });
+            });
 
-    const insertedSuggestions = suggestionsToInsert.map((s) => ({
-      word: s.word,
-      translation: s.translation,
-    }));
+        let translationsToInsert: LemmaTranslationAttr[] = [];
+        let lemmasToUpdate: LemmaUpdate[] = [];
 
-    const skippedTranslations = insertedTranslations
-      .filter((t) => t.translation === null)
-      .map((t) => t.word);
+        if (lemmasToTranslate.length > 0) {
+            const wordsToTranslate = lemmasToTranslate.map(l => l.lemma);
+            const { fetchMetadata, translations } = await translateWords(
+                mainLang,
+                translationLang,
+                wordsToTranslate,
+            );
 
-    await Promise.all([
-      saveSuggestionsReport({
-        userId,
-        updatedLemmas: lemmasToUpdate,
-        insertedSuggestions,
-        insertedTranslations,
-        skippedTranslations,
-        mainLang,
-        translationLang,
-      }),
-      translationsToInsert.length > 0
-        ? LemmaTranslation.insertMany(
-            mapArrayToLemmaTranslations(translationsToInsert),
-            { ordered: false },
-          )
-        : Promise.resolve(),
-      suggestionsToInsert.length > 0
-        ? Suggestion.insertMany(suggestionsToInsert)
-        : Promise.resolve(),
-      ...lemmasToUpdate.map((l) =>
-        Lemma.updateOne({ _id: l._id }, { $set: { prefix: l.prefix } }),
-      ),
-    ]);
-  });
+            const matchedPairs = matchTranslationsToLemmas(translations, lemmasToTranslate);
+
+            await saveGPTReport(fetchMetadata);
+
+            const prepared = prepareInsertData(
+                matchedPairs,
+                suggestedLemmasIds,
+                userId,
+                mainLang,
+                translationLang,
+            );
+
+            translationsToInsert.push(...prepared.translationsToInsert);
+            suggestionsToInsert.push(...prepared.suggestionsToInsert);
+            lemmasToUpdate.push(...prepared.lemmasToUpdate);
+        }
+
+        const insertedTranslations = translationsToInsert.map(t => ({
+            translation: t.translation,
+            word: lemmasToTranslate.find(l => l._id.toString() === t.lemmaId)?.lemma || '',
+        }));
+
+        const insertedSuggestions = suggestionsToInsert.map(s => ({
+            translation: s.translation,
+            word: s.word,
+        }));
+
+        const skippedTranslations = insertedTranslations
+            .filter(t => t.translation === null)
+            .map(t => t.word);
+
+        await Promise.all([
+            saveSuggestionsReport({
+                insertedSuggestions,
+                insertedTranslations,
+                mainLang,
+                skippedTranslations,
+                translationLang,
+                updatedLemmas: lemmasToUpdate,
+                userId,
+            }),
+            translationsToInsert.length > 0
+                ? LemmaTranslation.insertMany(mapArrayToLemmaTranslations(translationsToInsert), {
+                      ordered: false,
+                  })
+                : Promise.resolve(),
+            suggestionsToInsert.length > 0
+                ? Suggestion.insertMany(suggestionsToInsert)
+                : Promise.resolve(),
+            ...lemmasToUpdate.map(l =>
+                Lemma.updateOne({ _id: l._id }, { $set: { prefix: l.prefix } }),
+            ),
+        ]);
+    });
 };
 
 const prepareInsertData = (
-  matchedPairs: MatchPair[],
-  suggestedLemmaIds: string[],
-  userId: string,
-  mainLang: LanguageCodeValue,
-  translationLang: LanguageCodeValue,
+    matchedPairs: MatchPair[],
+    suggestedLemmaIds: string[],
+    userId: string,
+    mainLang: LanguageCodeValue,
+    translationLang: LanguageCodeValue,
 ) => {
-  const translationsToInsert: LemmaTranslationAttr[] = [];
-  const suggestionsToInsert: SuggestionAttr[] = [];
-  const lemmasToUpdate: LemmaUpdate[] = [];
+    const translationsToInsert: LemmaTranslationAttr[] = [];
+    const suggestionsToInsert: SuggestionAttr[] = [];
+    const lemmasToUpdate: LemmaUpdate[] = [];
 
-  for (const pair of matchedPairs) {
-    const { lemmaId, lemma, prefix, translation, example, isValid } = pair;
+    for (const pair of matchedPairs) {
+        const { example, isValid, lemma, lemmaId, prefix, translation } = pair;
 
-    translationsToInsert.push(
-      createLemmaTranslation({
-        lemmaId,
-        translation: isValid ? translation : null,
-        example: isValid ? example : null,
-        isValid,
-        translationLang,
-        mainLang,
-      }),
-    );
+        translationsToInsert.push(
+            createLemmaTranslation({
+                example: isValid ? example : null,
+                isValid,
+                lemmaId,
+                mainLang,
+                translation: isValid ? translation : null,
+                translationLang,
+            }),
+        );
 
-    if (!isValid) continue;
+        if (!isValid) continue;
 
-    if (prefix) {
-      lemmasToUpdate.push({
-        _id: lemmaId,
-        lemma,
-        prefix,
-      });
+        if (prefix) {
+            lemmasToUpdate.push({
+                _id: lemmaId,
+                lemma,
+                prefix,
+            });
+        }
+
+        if (suggestedLemmaIds.includes(lemmaId)) {
+            suggestionsToInsert.push(
+                createSuggestion({
+                    example,
+                    lemma,
+                    lemmaId,
+                    mainLang,
+                    translation,
+                    translationLang,
+                    userId,
+                    word: prefix ? `${prefix}${lemma}` : lemma,
+                }),
+            );
+        }
     }
 
-    if (suggestedLemmaIds.includes(lemmaId)) {
-      suggestionsToInsert.push(
-        createSuggestion({
-          userId,
-          lemma,
-          lemmaId,
-          word: prefix ? `${prefix}${lemma}` : lemma,
-          translation,
-          example,
-          mainLang,
-          translationLang,
-        }),
-      );
-    }
-  }
-
-  return { translationsToInsert, suggestionsToInsert, lemmasToUpdate };
+    return { lemmasToUpdate, suggestionsToInsert, translationsToInsert };
 };

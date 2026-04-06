@@ -1,8 +1,6 @@
-import { GetUserSuggestionsResponse } from "./GetUserSuggestionsResponse";
-import { GetUserSuggestionsParams } from "./GetUserSuggestionsParams";
+import { GetUserSuggestionsParams } from './GetUserSuggestionsParams';
+import { GetUserSuggestionsResponse } from './GetUserSuggestionsResponse';
 
 export interface SuggestionsRepository {
-  getUserSuggestions(
-    params: GetUserSuggestionsParams
-  ): Promise<GetUserSuggestionsResponse>;
+    getUserSuggestions(params: GetUserSuggestionsParams): Promise<GetUserSuggestionsResponse>;
 }

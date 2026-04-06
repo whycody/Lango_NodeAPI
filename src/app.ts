@@ -1,11 +1,12 @@
 import express, { Request, Response } from 'express';
+
 import authRoutes from './routes/auth';
+import evaluationsRoutes from './routes/evaluations';
+import notificationsRoutes from './routes/notifications';
+import sessionsRoutes from './routes/sessions';
+import suggestionsRoutes from './routes/suggestions';
 import usersRoutes from './routes/users';
 import wordRoutes from './routes/words';
-import sessionsRoutes from './routes/sessions';
-import evaluationsRoutes from './routes/evaluations';
-import suggestionsRoutes from './routes/suggestions';
-import notificationsRoutes from './routes/notifications';
 
 const app = express();
 app.use(express.json());
@@ -19,7 +20,7 @@ app.use('/api', wordRoutes);
 app.use('/notifications', notificationsRoutes);
 
 app.get('/', (req: Request, res: Response) => {
-  res.status(200).json({ message: 'API is working', status: 'OK' });
+    res.status(200).json({ message: 'API is working', status: 'OK' });
 });
 
 export default app;

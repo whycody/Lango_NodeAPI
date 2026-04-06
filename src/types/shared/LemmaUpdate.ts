@@ -1,5 +1,5 @@
 export type LemmaUpdate = {
-  _id: string,
-  lemma: string;
-  prefix: string
+    _id: string;
+    lemma: string;
+    prefix: string;
 };

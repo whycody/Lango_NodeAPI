@@ -1,25 +1,29 @@
 import { Document, model, Schema } from 'mongoose';
-import { LanguageCode } from "../../constants/languageCodes";
-import { GPTReportAttr } from "../../types/models/GPTReportAttr";
-import { wordPairSchema } from "../WordPair";
+
+import { LanguageCode } from '../../constants/languageCodes';
+import { GPTReportAttr } from '../../types/models/GPTReportAttr';
+import { wordPairSchema } from '../WordPair';
 
 export interface GPTReport extends Document, GPTReportAttr {
-  updatedAt: Date;
+    updatedAt: Date;
 }
 
-const gptReportSchema = new Schema<GPTReport>({
-  prompt: { type: String, required: true },
-  words: { type: [wordPairSchema], required: true },
-  mainLang: { type: String, required: true, enum: Object.values(LanguageCode) },
-  translationLang: { type: String, required: true, enum: Object.values(LanguageCode) },
-  totalWords: { type: Number, required: true },
-  tokensInput: { type: Number },
-  tokensOutput: { type: Number },
-  costUSD: { type: Number },
-  aiModel: { type: String, required: true },
-  updatedAt: { type: Date, default: Date.now },
-}, {
-  timestamps: { updatedAt: 'updatedAt', createdAt: false },
-});
+const gptReportSchema = new Schema<GPTReport>(
+    {
+        aiModel: { required: true, type: String },
+        costUSD: { type: Number },
+        mainLang: { enum: Object.values(LanguageCode), required: true, type: String },
+        prompt: { required: true, type: String },
+        tokensInput: { type: Number },
+        tokensOutput: { type: Number },
+        totalWords: { required: true, type: Number },
+        translationLang: { enum: Object.values(LanguageCode), required: true, type: String },
+        updatedAt: { default: Date.now, type: Date },
+        words: { required: true, type: [wordPairSchema] },
+    },
+    {
+        timestamps: { createdAt: false, updatedAt: 'updatedAt' },
+    },
+);
 
 export default model<GPTReport>('GPTReport', gptReportSchema, 'gpt_reports');

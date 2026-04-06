@@ -1,3 +1,3 @@
 export function normalizeWord(word: string): string {
-  return word.replace(/'\s+/, "'");
+    return word.replace(/'\s+/, "'");
 }

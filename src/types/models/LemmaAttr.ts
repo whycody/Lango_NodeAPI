@@ -1,14 +1,15 @@
-import { LemmaTypeValue } from "../../constants/lemmasTypes";
-import { LanguageCodeValue } from "../../constants/languageCodes";
-import { Types } from "mongoose";
+import { Types } from 'mongoose';
+
+import { LanguageCodeValue } from '../../constants/languageCodes';
+import { LemmaTypeValue } from '../../constants/lemmasTypes';
 
 export type LemmaAttr = {
-  lemma: string;
-  type: LemmaTypeValue;
-  lang: LanguageCodeValue;
-  prefix: string;
-  freq: number;
-  freq_z: number;
+    lemma: string;
+    type: LemmaTypeValue;
+    lang: LanguageCodeValue;
+    prefix: string;
+    freq: number;
+    freq_z: number;
 };
 
 export type LemmaAttrWithId = LemmaAttr & { _id: Types.ObjectId | string };
