@@ -2,12 +2,20 @@ import { Document, model, Schema } from 'mongoose';
 
 import { LanguageCode } from '../../constants/languageCodes';
 import { SuggestionsReportAttr } from '../../types/models/SuggestionsReportAttr';
+import { WordPair } from '../../types/shared/WordPair';
 import { lemmaUpdateSchema } from '../lemmas/LemmaUpdate';
-import { wordPairSchema } from '../WordPair';
 
 export interface SuggestionsReport extends Document, SuggestionsReportAttr {
     createdAt: Date;
 }
+
+const wordPairSchema = new Schema<WordPair>(
+    {
+        translation: { default: null, type: String },
+        word: { required: true, type: String },
+    },
+    { _id: false },
+);
 
 const suggestionsReportSchema = new Schema<SuggestionsReport>(
     {

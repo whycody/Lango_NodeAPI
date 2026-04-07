@@ -23,14 +23,15 @@ export const matchTranslationsToLemmas = (
         if (!lemma) continue;
 
         const article = item.sourceArticle ? normalizeArticle(item.sourceArticle) : null;
+        const hasTranslations = item.translations.length > 0;
 
         matchedPairs.push({
             example: item.example,
-            isValid: item.isValid,
+            isValid: item.isValid && hasTranslations,
             lemma: lemma.lemma,
             lemmaId: lemma._id.toString(),
             prefix: lemma.type === 'subst' ? article : null,
-            translation: item.translations.join(', ') ?? '',
+            translation: hasTranslations ? item.translations.join(', ') : null,
             word: article ? `${article}${item.source}` : item.source,
         });
     }

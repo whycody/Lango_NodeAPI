@@ -7,6 +7,6 @@ export type MatchPair = {
         source: string;
         target: string;
     } | null;
-    translation: string;
+    translation: string | null;
     prefix: string | null;
 };

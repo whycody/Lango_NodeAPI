@@ -172,16 +172,16 @@ const prepareInsertData = (
 
         translationsToInsert.push(
             createLemmaTranslation({
-                example: isValid ? example : null,
+                example,
                 isValid,
                 lemmaId,
                 mainLang,
-                translation: isValid ? translation : null,
+                translation,
                 translationLang,
             }),
         );
 
-        if (!isValid) continue;
+        if (!isValid || !translation) continue;
 
         if (prefix) {
             lemmasToUpdate.push({
