@@ -106,6 +106,87 @@ describe('translateWords', () => {
         expect(mockChat).toHaveBeenCalledTimes(2);
     });
 
+    it('retries when GPT returns a JSON object instead of an array', async () => {
+        mockChat.mockResolvedValue({
+            data: JSON.stringify({ results: [] }),
+            tokensInput: 10,
+            tokensOutput: 5,
+        });
+
+        const result = await translateWords(mainLang, translationLang, ['casa']);
+
+        expect(result.translations).toEqual([]);
+        expect(mockChat).toHaveBeenCalledTimes(2);
+    });
+
+    it('retries when GPT returns an array containing items missing required fields', async () => {
+        mockChat.mockResolvedValue({
+            data: JSON.stringify([{ source: 'casa', translations: ['dom'] }]),
+            tokensInput: 10,
+            tokensOutput: 5,
+        });
+
+        const result = await translateWords(mainLang, translationLang, ['casa']);
+
+        expect(result.translations).toEqual([]);
+        expect(mockChat).toHaveBeenCalledTimes(2);
+    });
+
+    it('retries when items have wrong field types', async () => {
+        mockChat.mockResolvedValue({
+            data: JSON.stringify([{ source: 'casa', isValid: 'yes', translations: ['dom'] }]),
+            tokensInput: 10,
+            tokensOutput: 5,
+        });
+
+        const result = await translateWords(mainLang, translationLang, ['casa']);
+
+        expect(result.translations).toEqual([]);
+        expect(mockChat).toHaveBeenCalledTimes(2);
+    });
+
+    it('retries when translations field is not an array', async () => {
+        mockChat.mockResolvedValue({
+            data: JSON.stringify([{ source: 'casa', isValid: true, translations: 'dom' }]),
+            tokensInput: 10,
+            tokensOutput: 5,
+        });
+
+        const result = await translateWords(mainLang, translationLang, ['casa']);
+
+        expect(result.translations).toEqual([]);
+        expect(mockChat).toHaveBeenCalledTimes(2);
+    });
+
+    it('rejects entire response when at least one item is malformed', async () => {
+        mockChat.mockResolvedValue({
+            data: JSON.stringify([
+                { source: 'casa', isValid: true, translations: ['dom'] },
+                { source: 'gatto', isValid: true },
+            ]),
+            tokensInput: 10,
+            tokensOutput: 5,
+        });
+
+        const result = await translateWords(mainLang, translationLang, ['casa', 'gatto']);
+
+        expect(result.translations).toEqual([]);
+        expect(mockChat).toHaveBeenCalledTimes(2);
+    });
+
+    it('accepts an empty array as a valid response', async () => {
+        mockChat.mockResolvedValue({
+            data: '[]',
+            tokensInput: 10,
+            tokensOutput: 5,
+        });
+
+        const result = await translateWords(mainLang, translationLang, ['casa']);
+
+        expect(result.translations).toEqual([]);
+        expect(mockChat).toHaveBeenCalledTimes(1);
+    });
+
     it('returns parsed result on retry when first attempt fails', async () => {
         const gptData = [
             {

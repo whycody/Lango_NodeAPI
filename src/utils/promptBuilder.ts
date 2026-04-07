@@ -47,7 +47,7 @@ export const buildTranslatingWordsPrompt = (
 
     base += `language_to: ${translationLang.languageName}\n`;
 
-    base += `words: [${words.join(', ')}]`;
+    base += `words: ${JSON.stringify(words)}`;
 
     return base;
 };

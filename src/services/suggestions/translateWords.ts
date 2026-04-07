@@ -6,9 +6,22 @@ import { GPTClient } from '../clients/GPTClient';
 
 const gptClient = new GPTClient();
 
+function isTranslationItem(x: unknown): x is TranslationItem {
+    if (typeof x !== 'object' || x === null) return false;
+    const item = x as TranslationItem;
+    return (
+        typeof item.source === 'string' &&
+        typeof item.isValid === 'boolean' &&
+        Array.isArray(item.translations)
+    );
+}
+
 function tryParse(data: string | null): TranslationItem[] | null {
     try {
-        return JSON.parse(data || '[]');
+        const parsed = JSON.parse(data || '[]');
+        if (!Array.isArray(parsed)) return null;
+        if (!parsed.every(isTranslationItem)) return null;
+        return parsed;
     } catch {
         return null;
     }

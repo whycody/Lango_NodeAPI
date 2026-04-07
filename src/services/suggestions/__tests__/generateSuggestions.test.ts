@@ -239,7 +239,7 @@ describe('generateSuggestionsInBackground', () => {
                 lemma: 'gatto',
                 isValid: false,
                 word: 'gatto',
-                translation: '',
+                translation: null,
                 example: null,
                 prefix: null,
             },

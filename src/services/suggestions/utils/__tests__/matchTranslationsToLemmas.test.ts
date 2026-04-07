@@ -214,7 +214,7 @@ describe('matchTranslationsToLemmas', () => {
                 lemma: 'amico',
                 isValid: false,
                 word: 'amico',
-                translation: '',
+                translation: null,
                 example: null,
                 prefix: null,
             },
