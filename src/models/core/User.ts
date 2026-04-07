@@ -107,7 +107,7 @@ const userSchema = new Schema<User>({
         neutralTimeLastNotifiedAt: { default: Date.now, type: Date },
     },
     picture: { type: String },
-    provider: { enum: ['google', 'facebook'], required: true, type: String },
+    provider: { enum: ['google', 'facebook', 'apple'], required: true, type: String },
     providerId: { required: true, type: String, unique: true },
     refreshTokens: [
         {
