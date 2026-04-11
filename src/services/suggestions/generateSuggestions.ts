@@ -1,5 +1,5 @@
 import { LanguageCodeValue } from '../../constants/languageCodes';
-import { SUGGESTIONS_TO_GENERATE } from '../../constants/suggestions';
+import { SUGGESTIONS_TO_INSERT, SUGGESTIONS_TO_TRANSLATE } from '../../constants/suggestions';
 import Suggestion from '../../models/core/Suggestion';
 import User from '../../models/core/User';
 import Lemma from '../../models/lemmas/Lemma';
@@ -35,7 +35,7 @@ export const generateSuggestionsInBackground = async (
 
         const suggestionsResponse = await suggestionsRepo.getUserSuggestions({
             level,
-            limit: SUGGESTIONS_TO_GENERATE,
+            limit: SUGGESTIONS_TO_INSERT,
             mainLang,
             translationLang,
             userId,
@@ -53,7 +53,7 @@ export const generateSuggestionsInBackground = async (
             mainLang,
             translationLang,
             medianFreq,
-            SUGGESTIONS_TO_GENERATE,
+            SUGGESTIONS_TO_TRANSLATE,
         );
 
         const lemmasToTranslate = await Lemma.find({

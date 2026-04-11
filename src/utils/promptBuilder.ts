@@ -18,7 +18,9 @@ export const buildTranslatingWordsPrompt = (
 
     const rules = [
         'Keep output short and compact',
-        'Max 2 translations per word',
+        'Prioritize natural, common translations over literal/archaic ones',
+        'Include second translation only if it has significantly different meaning or context',
+        'Never include unnatural or forced literal translations as secondary',
         'Prefer common meanings',
         'Skip rare/archaic meanings',
         'If invalid word, mark isValid=false',

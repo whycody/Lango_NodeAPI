@@ -6,22 +6,46 @@ import { GPTClient } from '../clients/GPTClient';
 
 const gptClient = new GPTClient();
 
+function isExample(value: unknown): value is TranslationItem['example'] {
+    if (value === null) return true;
+    if (typeof value !== 'object' || value === null) return false;
+
+    const example = value as Record<string, unknown>;
+    return typeof example.source === 'string' && typeof example.target === 'string';
+}
+
 function isTranslationItem(x: unknown): x is TranslationItem {
     if (typeof x !== 'object' || x === null) return false;
-    const item = x as TranslationItem;
+    const item = x as Record<string, unknown>;
     return (
         typeof item.source === 'string' &&
+        (typeof item.sourceArticle === 'string' || item.sourceArticle === null) &&
         typeof item.isValid === 'boolean' &&
-        Array.isArray(item.translations)
+        Array.isArray(item.translations) &&
+        item.translations.every(translation => typeof translation === 'string') &&
+        isExample(item.example)
     );
+}
+
+function stripCodeFence(data: string | null): string {
+    if (!data) return '[]';
+    let text = data.trim();
+
+    const fenceMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/i);
+    if (fenceMatch?.[1]) {
+        text = fenceMatch[1].trim();
+    }
+
+    return text;
 }
 
 function tryParse(data: string | null): TranslationItem[] | null {
     try {
-        const parsed = JSON.parse(data || '[]');
+        const parsed = JSON.parse(stripCodeFence(data));
         if (!Array.isArray(parsed)) return null;
-        if (!parsed.every(isTranslationItem)) return null;
-        return parsed;
+        if (parsed.length === 0) return [];
+        const validItems = parsed.filter(isTranslationItem);
+        return validItems.length > 0 ? validItems : null;
     } catch {
         return null;
     }
