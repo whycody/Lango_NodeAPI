@@ -5,6 +5,7 @@ import evaluationsRoutes from './routes/evaluations';
 import notificationsRoutes from './routes/notifications';
 import sessionsRoutes from './routes/sessions';
 import suggestionsRoutes from './routes/suggestions';
+import translationsRoutes from './routes/translations';
 import usersRoutes from './routes/users';
 import wordRoutes from './routes/words';
 
@@ -16,6 +17,7 @@ app.use('/users', usersRoutes);
 app.use('/sessions', sessionsRoutes);
 app.use('/evaluations', evaluationsRoutes);
 app.use('/suggestions', suggestionsRoutes);
+app.use('/translations', translationsRoutes);
 app.use('/api', wordRoutes);
 app.use('/notifications', notificationsRoutes);
 
