@@ -24,5 +24,10 @@ export const updateLemmaTranslationCounts = async (
     updateCount(existingSuggestion.added, suggestion.added, 'addCount');
     updateCount(existingSuggestion.skipped, suggestion.skipped, 'skipCount');
 
+    // Legacy documents may not have mainLang yet; set it before save to satisfy schema validation.
+    if (!existingTranslation.mainLang) {
+        existingTranslation.mainLang = existingSuggestion.mainLang;
+    }
+
     await existingTranslation.save();
 };

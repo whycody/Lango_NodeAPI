@@ -158,20 +158,25 @@ describe('translateWords', () => {
         expect(mockChat).toHaveBeenCalledTimes(2);
     });
 
-    it('rejects entire response when at least one item is malformed', async () => {
+    it('filters out malformed item and keeps valid items', async () => {
+        const validItem = {
+            source: 'casa',
+            sourceArticle: null,
+            isValid: true,
+            translations: ['dom'],
+            example: null,
+        };
+
         mockChat.mockResolvedValue({
-            data: JSON.stringify([
-                { source: 'casa', isValid: true, translations: ['dom'] },
-                { source: 'gatto', isValid: true },
-            ]),
+            data: JSON.stringify([validItem, { source: 'gatto', isValid: true }]),
             tokensInput: 10,
             tokensOutput: 5,
         });
 
         const result = await translateWords(mainLang, translationLang, ['casa', 'gatto']);
 
-        expect(result.translations).toEqual([]);
-        expect(mockChat).toHaveBeenCalledTimes(2);
+        expect(result.translations).toEqual([validItem]);
+        expect(mockChat).toHaveBeenCalledTimes(1);
     });
 
     it('accepts an empty array as a valid response', async () => {

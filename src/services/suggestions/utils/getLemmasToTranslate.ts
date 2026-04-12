@@ -1,9 +1,9 @@
 import { Types } from 'mongoose';
 
 import { LanguageCodeValue } from '../../../constants/languageCodes';
+import { SUGGESTIONS_TO_INSERT, SUGGESTIONS_TO_TRANSLATE } from '../../../constants/suggestions';
 import Lemma from '../../../models/lemmas/Lemma';
 import LemmaTranslation from '../../../models/lemmas/LemmaTranslation';
-import { SUGGESTIONS_TO_INSERT, SUGGESTIONS_TO_TRANSLATE } from '../../../constants/suggestions';
 
 export async function getLemmasIdsToTranslate(
     lemmaIds: string[],
@@ -24,7 +24,7 @@ export async function getLemmasIdsToTranslate(
     const validLemmaTranslationsCount = lemmaTranslations.filter(t => !!t.translation).length;
     const untranslatedLemmaIds = lemmaIds.filter(id => !alreadyTranslatedLemmaIds.has(id));
 
-    if (validLemmaTranslationsCount === SUGGESTIONS_TO_INSERT) return [];
+    if (validLemmaTranslationsCount >= SUGGESTIONS_TO_INSERT) return [];
 
     const additionalTranslationsNeeded = Math.max(limit - untranslatedLemmaIds.length, 0);
     let lemmasIdsToTranslate: string[] = [];
