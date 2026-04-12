@@ -56,5 +56,5 @@ export async function getLemmasIdsToTranslate(
         lemmasIdsToTranslate = additionalCandidates.map(l => l._id.toString());
     }
 
-    return [...untranslatedLemmaIds, ...lemmasIdsToTranslate].slice(0, limit);
+    return [...untranslatedLemmaIds, ...lemmasIdsToTranslate];
 }

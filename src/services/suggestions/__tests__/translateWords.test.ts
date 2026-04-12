@@ -15,10 +15,16 @@ jest.mock('../../clients/GPTClient', () => ({
 describe('translateWords', () => {
     const mainLang = 'it';
     const translationLang = 'pl';
+    let consoleErrorSpy: jest.SpyInstance;
 
     beforeEach(() => {
+        consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
         jest.clearAllMocks();
         (buildTranslatingWordsPrompt as jest.Mock).mockReturnValue('mocked-prompt');
+    });
+
+    afterEach(() => {
+        consoleErrorSpy.mockRestore();
     });
 
     it('parses GPT JSON response into TranslationItem array', async () => {
@@ -57,6 +63,7 @@ describe('translateWords', () => {
         const result = await translateWords(mainLang, translationLang, ['xyz']);
 
         expect(result.translations).toEqual([]);
+        expect(mockChat).toHaveBeenCalledTimes(1);
     });
 
     it('populates fetchMetadata correctly', async () => {
@@ -416,6 +423,48 @@ describe('translateWords', () => {
         const result = await translateWords(mainLang, translationLang, ['casa']);
 
         expect(result.translations).toEqual(gptData);
+        expect(mockChat).toHaveBeenCalledTimes(2);
+    });
+
+    it('uses metadata from successful retry response', async () => {
+        const retriedData = [
+            {
+                source: 'casa',
+                sourceArticle: 'la',
+                isValid: true,
+                translations: ['dom'],
+                example: null,
+            },
+        ];
+
+        mockChat
+            .mockResolvedValueOnce({
+                data: 'invalid-json',
+                tokensInput: 5,
+                tokensOutput: 1,
+                costUSD: 0.0001,
+            })
+            .mockResolvedValueOnce({
+                data: JSON.stringify(retriedData),
+                tokensInput: 120,
+                tokensOutput: 60,
+                costUSD: 0.003,
+            });
+
+        const result = await translateWords(mainLang, translationLang, ['casa']);
+
+        expect(result.fetchMetadata).toEqual({
+            prompt: 'mocked-prompt',
+            response: JSON.stringify(retriedData),
+            words: retriedData,
+            mainLang,
+            translationLang,
+            totalWords: 1,
+            tokensInput: 120,
+            tokensOutput: 60,
+            costUSD: 0.003,
+            aiModel: 'gpt-4o-mini',
+        });
         expect(mockChat).toHaveBeenCalledTimes(2);
     });
 });
