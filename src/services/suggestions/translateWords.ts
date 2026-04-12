@@ -27,6 +27,29 @@ function isTranslationItem(x: unknown): x is TranslationItem {
     );
 }
 
+function normalizeTranslationItem(x: unknown): TranslationItem | null {
+    if (typeof x !== 'object' || x === null) return null;
+
+    const item = x as Record<string, unknown>;
+    if (typeof item.source !== 'string' || typeof item.isValid !== 'boolean') return null;
+
+    if (item.isValid === false) {
+        return {
+            example: isExample(item.example) ? item.example : null,
+            isValid: false,
+            source: item.source,
+            sourceArticle: typeof item.sourceArticle === 'string' ? item.sourceArticle : null,
+            translations:
+                Array.isArray(item.translations) &&
+                item.translations.every(translation => typeof translation === 'string')
+                    ? item.translations
+                    : [],
+        };
+    }
+
+    return isTranslationItem(item) ? item : null;
+}
+
 function stripCodeFence(data: string | null): string {
     if (!data) return '[]';
     let text = data.trim();
@@ -44,7 +67,11 @@ function tryParse(data: string | null): TranslationItem[] | null {
         const parsed = JSON.parse(stripCodeFence(data));
         if (!Array.isArray(parsed)) return null;
         if (parsed.length === 0) return [];
-        const validItems = parsed.filter(isTranslationItem);
+
+        const validItems = parsed
+            .map(normalizeTranslationItem)
+            .filter((item): item is TranslationItem => item !== null);
+
         return validItems.length > 0 ? validItems : null;
     } catch {
         return null;

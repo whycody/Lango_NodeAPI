@@ -179,6 +179,33 @@ describe('translateWords', () => {
         expect(mockChat).toHaveBeenCalledTimes(1);
     });
 
+    it('accepts isValid=false items with missing fields and fills defaults', async () => {
+        mockChat.mockResolvedValue({
+            data: JSON.stringify([
+                {
+                    source: 'gatto',
+                    isValid: false,
+                    translations: ['kot (niepewne)'],
+                },
+            ]),
+            tokensInput: 10,
+            tokensOutput: 5,
+        });
+
+        const result = await translateWords(mainLang, translationLang, ['gatto']);
+
+        expect(result.translations).toEqual([
+            {
+                source: 'gatto',
+                sourceArticle: null,
+                isValid: false,
+                translations: ['kot (niepewne)'],
+                example: null,
+            },
+        ]);
+        expect(mockChat).toHaveBeenCalledTimes(1);
+    });
+
     it('accepts an empty array as a valid response', async () => {
         mockChat.mockResolvedValue({
             data: '[]',

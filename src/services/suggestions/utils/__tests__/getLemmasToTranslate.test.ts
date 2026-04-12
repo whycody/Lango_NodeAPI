@@ -100,4 +100,22 @@ describe('getLemmasIdsToTranslate', () => {
 
         expect(result.length).toBeLessThanOrEqual(2);
     });
+
+    it('caps untranslated lemmaIds to the given limit', async () => {
+        const manyLemmaIds = Array.from({ length: 5 }).map(() => new Types.ObjectId().toString());
+
+        (LemmaTranslation.find as jest.Mock).mockReturnValueOnce({
+            lean: jest.fn().mockResolvedValue([]),
+        });
+
+        const result = await getLemmasIdsToTranslate(
+            manyLemmaIds,
+            mainLang,
+            translationLang,
+            medianFreq,
+            2,
+        );
+
+        expect(result).toEqual(manyLemmaIds.slice(0, 2));
+    });
 });

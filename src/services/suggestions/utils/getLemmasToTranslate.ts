@@ -25,6 +25,7 @@ export async function getLemmasIdsToTranslate(
     const untranslatedLemmaIds = lemmaIds.filter(id => !alreadyTranslatedLemmaIds.has(id));
 
     if (validLemmaTranslationsCount >= SUGGESTIONS_TO_INSERT) return [];
+    if (untranslatedLemmaIds.length >= limit) return untranslatedLemmaIds.slice(0, limit);
 
     const additionalTranslationsNeeded = Math.max(limit - untranslatedLemmaIds.length, 0);
     let lemmasIdsToTranslate: string[] = [];
@@ -55,5 +56,5 @@ export async function getLemmasIdsToTranslate(
         lemmasIdsToTranslate = additionalCandidates.map(l => l._id.toString());
     }
 
-    return [...untranslatedLemmaIds, ...lemmasIdsToTranslate];
+    return [...untranslatedLemmaIds, ...lemmasIdsToTranslate].slice(0, limit);
 }
