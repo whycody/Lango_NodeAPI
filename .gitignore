@@ -30,7 +30,6 @@ Thumbs.db
 
 # IDE / Editor
 .idea/
-.vscode/
 *.suo
 *.ntvs*
 *.njsproj

@@ -1,4 +1,4 @@
 export type ExtractedArticle = {
-  articleFound: string | null;
-  coreWord: string;
+    articleFound: string | null;
+    coreWord: string;
 };

@@ -1,52 +1,60 @@
-import { LanguageCodeValue } from "../../../constants/languageCodes";
-import LemmaTranslation from "../../../models/lemmas/LemmaTranslation";
-import Lemma from "../../../models/lemmas/Lemma";
-import { Types } from "mongoose";
+import { Types } from 'mongoose';
+
+import { LanguageCodeValue } from '../../../constants/languageCodes';
+import { SUGGESTIONS_TO_INSERT, SUGGESTIONS_TO_TRANSLATE } from '../../../constants/suggestions';
+import Lemma from '../../../models/lemmas/Lemma';
+import LemmaTranslation from '../../../models/lemmas/LemmaTranslation';
 
 export async function getLemmasIdsToTranslate(
-  lemmaIds: string[],
-  mainLang: LanguageCodeValue,
-  translationLang: LanguageCodeValue,
-  medianFreq: number,
-  limit: number = 30
+    lemmaIds: string[],
+    mainLang: LanguageCodeValue,
+    translationLang: LanguageCodeValue,
+    medianFreq: number,
+    limit: number = SUGGESTIONS_TO_TRANSLATE,
 ): Promise<string[]> {
-  const lemmaObjectIds = lemmaIds.map(id => new Types.ObjectId(id));
+    const lemmaObjectIds = lemmaIds.map(id => new Types.ObjectId(id));
 
-  const translatedDocs = await LemmaTranslation.find({
-    lemmaId: { $in: lemmaObjectIds },
-    translationLang,
-  }).lean()
-
-  const translatedIds = new Set(translatedDocs.filter((t) => !!t.translation).map((doc) => doc.lemmaId.toString()))
-  const untranslatedIds = lemmaIds.filter((id) => !translatedDocs.some((doc) => doc.lemmaId.toString() === id))
-
-  if (translatedIds.size === limit) return []
-
-  const additionalNeeded = Math.max(limit - untranslatedIds.length, 0)
-
-  let additionalIds: string[] = []
-  if (additionalNeeded > 0) {
-    const allTranslatedLemmas = await LemmaTranslation.find({
-      translationLang
+    const lemmaTranslations = await LemmaTranslation.find({
+        lemmaId: { $in: lemmaObjectIds },
+        translationLang,
     }).lean();
 
-    const allTranslatedLemmasIds = allTranslatedLemmas.map((l) => l.lemmaId)
+    const alreadyTranslatedLemmaIds = new Set(lemmaTranslations.map(doc => doc.lemmaId.toString()));
 
-    const additionalCandidates = await Lemma.find({
-      lang: mainLang,
-      _id: { $nin: allTranslatedLemmasIds },
-    }).lean()
+    const validLemmaTranslationsCount = lemmaTranslations.filter(t => !!t.translation).length;
+    const untranslatedLemmaIds = lemmaIds.filter(id => !alreadyTranslatedLemmaIds.has(id));
 
-    additionalCandidates.sort(
-      (a, b) =>
-        Math.abs((a.freq_z ?? 0) - medianFreq) -
-        Math.abs((b.freq_z ?? 0) - medianFreq)
-    )
+    if (validLemmaTranslationsCount >= SUGGESTIONS_TO_INSERT) return [];
+    if (untranslatedLemmaIds.length >= limit) return untranslatedLemmaIds.slice(0, limit);
 
-    additionalIds = additionalCandidates
-      .slice(0, additionalNeeded)
-      .map((l) => l._id.toString())
-  }
+    const additionalTranslationsNeeded = Math.max(limit - untranslatedLemmaIds.length, 0);
+    let lemmasIdsToTranslate: string[] = [];
 
-  return [...untranslatedIds, ...additionalIds]
+    if (additionalTranslationsNeeded > 0) {
+        const alreadyTranslatedLemmaIds = await LemmaTranslation.distinct('lemmaId', {
+            translationLang,
+        });
+
+        const additionalCandidates = await Lemma.aggregate([
+            {
+                $match: {
+                    _id: { $nin: alreadyTranslatedLemmaIds },
+                    lang: mainLang,
+                },
+            },
+            {
+                $addFields: {
+                    freqDistance: {
+                        $abs: { $subtract: [{ $ifNull: ['$freq_z', 0] }, medianFreq] },
+                    },
+                },
+            },
+            { $sort: { freqDistance: 1 } },
+            { $limit: additionalTranslationsNeeded },
+        ]);
+
+        lemmasIdsToTranslate = additionalCandidates.map(l => l._id.toString());
+    }
+
+    return [...untranslatedLemmaIds, ...lemmasIdsToTranslate].slice(0, limit);
 }

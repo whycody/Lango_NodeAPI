@@ -1,4 +1,4 @@
 export type WordPair = {
-  word: string;
-  translation: string | null
+    word: string;
+    translation: string | null;
 };

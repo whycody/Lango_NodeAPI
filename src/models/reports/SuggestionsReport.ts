@@ -1,23 +1,39 @@
 import { Document, model, Schema } from 'mongoose';
-import { LanguageCode } from "../../constants/languageCodes";
-import { wordPairSchema } from "../WordPair";
-import { SuggestionsReportAttr } from "../../types/models/SuggestionsReportAttr";
-import { lemmaUpdateSchema } from "../lemmas/LemmaUpdate";
+
+import { LanguageCode } from '../../constants/languageCodes';
+import { SuggestionsReportAttr } from '../../types/models/SuggestionsReportAttr';
+import { WordPair } from '../../types/shared/WordPair';
+import { lemmaUpdateSchema } from '../lemmas/LemmaUpdate';
 
 export interface SuggestionsReport extends Document, SuggestionsReportAttr {
-  createdAt: Date;
+    createdAt: Date;
 }
 
-const suggestionsReportSchema = new Schema<SuggestionsReport>({
-  userId: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
-  updatedLemmas: { type: [lemmaUpdateSchema], required: true },
-  insertedSuggestions: { type: [wordPairSchema], required: true },
-  insertedTranslations: { type: [wordPairSchema], required: true },
-  skippedTranslations: { type: [String], required: true },
-  mainLang: { type: String, required: true, enum: Object.values(LanguageCode) },
-  translationLang: { type: String, required: true, enum: Object.values(LanguageCode) },
-}, {
-  timestamps: { createdAt: 'createdAt', updatedAt: false },
-});
+const wordPairSchema = new Schema<WordPair>(
+    {
+        translation: { default: null, type: String },
+        word: { required: true, type: String },
+    },
+    { _id: false },
+);
 
-export default model<SuggestionsReport>('SuggestionsReport', suggestionsReportSchema, 'suggestions_reports');
+const suggestionsReportSchema = new Schema<SuggestionsReport>(
+    {
+        insertedSuggestions: { required: true, type: [wordPairSchema] },
+        insertedTranslations: { required: true, type: [wordPairSchema] },
+        mainLang: { enum: Object.values(LanguageCode), required: true, type: String },
+        skippedTranslations: { required: true, type: [String] },
+        translationLang: { enum: Object.values(LanguageCode), required: true, type: String },
+        updatedLemmas: { required: true, type: [lemmaUpdateSchema] },
+        userId: { ref: 'User', required: true, type: Schema.Types.ObjectId },
+    },
+    {
+        timestamps: { createdAt: 'createdAt', updatedAt: false },
+    },
+);
+
+export default model<SuggestionsReport>(
+    'SuggestionsReport',
+    suggestionsReportSchema,
+    'suggestions_reports',
+);

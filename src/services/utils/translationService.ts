@@ -1,21 +1,33 @@
-import LemmaTranslation from "../../models/lemmas/LemmaTranslation";
-import { SuggestionAttr } from "../../types/models/SuggestionAttr";
+import LemmaTranslation from '../../models/lemmas/LemmaTranslation';
+import { SuggestionAttr } from '../../types/models/SuggestionAttr';
 
-export const updateLemmaTranslationCounts = async (existingSuggestion: SuggestionAttr, suggestion: SuggestionAttr) => {
-  const existingTranslation = await LemmaTranslation.findOne({
-    lemmaId: existingSuggestion.lemmaId,
-    translationLang: existingSuggestion.translationLang,
-  });
+export const updateLemmaTranslationCounts = async (
+    existingSuggestion: SuggestionAttr,
+    suggestion: SuggestionAttr,
+) => {
+    const existingTranslation = await LemmaTranslation.findOne({
+        lemmaId: existingSuggestion.lemmaId,
+        translationLang: existingSuggestion.translationLang,
+    });
 
-  if (!existingTranslation) return;
+    if (!existingTranslation) return;
 
-  const updateCount = (prev: boolean | undefined, next: boolean, field: 'addCount' | 'skipCount') => {
-    if (!prev && next) existingTranslation[field] = (existingTranslation[field] ?? 0) + 1;
-    if (prev && !next) existingTranslation[field] = (existingTranslation[field] ?? 0) - 1;
-  };
+    const updateCount = (
+        prev: boolean | undefined,
+        next: boolean,
+        field: 'addCount' | 'skipCount',
+    ) => {
+        if (!prev && next) existingTranslation[field] = (existingTranslation[field] ?? 0) + 1;
+        if (prev && !next) existingTranslation[field] = (existingTranslation[field] ?? 0) - 1;
+    };
 
-  updateCount(existingSuggestion.added, suggestion.added, 'addCount');
-  updateCount(existingSuggestion.skipped, suggestion.skipped, 'skipCount');
+    updateCount(existingSuggestion.added, suggestion.added, 'addCount');
+    updateCount(existingSuggestion.skipped, suggestion.skipped, 'skipCount');
 
-  await existingTranslation.save();
+    // Legacy documents may not have mainLang yet; set it before save to satisfy schema validation.
+    if (!existingTranslation.mainLang) {
+        existingTranslation.mainLang = existingSuggestion.mainLang;
+    }
+
+    await existingTranslation.save();
 };

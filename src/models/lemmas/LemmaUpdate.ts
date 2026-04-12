@@ -1,7 +1,11 @@
-import { Schema } from "mongoose";
-import { LemmaUpdate } from "../../types/shared/LemmaUpdate";
+import { Schema } from 'mongoose';
 
-export const lemmaUpdateSchema = new Schema<LemmaUpdate>({
-  lemma: { type: String, required: true },
-  prefix: { type: String, required: true },
-}, { _id: false });
+import { LemmaUpdate } from '../../types/shared/LemmaUpdate';
+
+export const lemmaUpdateSchema = new Schema<LemmaUpdate>(
+    {
+        lemma: { required: true, type: String },
+        prefix: { required: true, type: String },
+    },
+    { _id: false },
+);

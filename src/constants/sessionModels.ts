@@ -1,7 +1,7 @@
 export enum SessionModel {
-  Heuristic = 'heuristic',
-  ML = 'ml',
-  Hybrid = 'hybrid',
+    Heuristic = 'heuristic',
+    ML = 'ml',
+    Hybrid = 'hybrid',
 }
 
-export type SessionModelValue = `${SessionModel}`
+export type SessionModelValue = `${SessionModel}`;

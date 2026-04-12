@@ -1,30 +1,49 @@
 import { Document, model, Schema } from 'mongoose';
-import { LanguageCode } from "../../constants/languageCodes";
-import { SuggestionAttr } from "../../types/models/SuggestionAttr";
 
-export interface Suggestion extends Omit<SuggestionAttr, "id">, Document {
-  createdAt: Date;
-  updatedAt: Date;
+import { LanguageCode } from '../../constants/languageCodes';
+import { SuggestionAttr } from '../../types/models/SuggestionAttr';
+
+export interface Suggestion extends Omit<SuggestionAttr, 'id'>, Document {
+    createdAt: Date;
+    updatedAt: Date;
 }
 
-const suggestionSchema = new Schema<Suggestion>({
-  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  word: { type: String, required: true },
-  translation: { type: String, required: true },
-  lemmaId: { type: Schema.Types.ObjectId, ref: 'Lemma', required: true },
-  lemma: { type: String, required: true },
-  mainLang: { type: String, required: true, enum: Object.values(LanguageCode) },
-  translationLang: { type: String, required: true, enum: Object.values(LanguageCode) },
-  displayCount: { type: Number, default: 0 },
-  skipped: { type: Boolean, default: false },
-  added: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
-}, {
-  timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }
-});
+const suggestionSchema = new Schema<Suggestion>(
+    {
+        added: { default: false, type: Boolean },
+        createdAt: { default: Date.now, type: Date },
+        displayCount: { default: 0, type: Number },
+        example: {
+            default: null,
+            type: {
+                source: { required: false, type: String },
+                target: { required: false, type: String },
+            },
+        },
+        lemma: { required: true, type: String },
+        lemmaId: { ref: 'Lemma', required: true, type: Schema.Types.ObjectId },
+        mainLang: {
+            enum: Object.values(LanguageCode),
+            required: true,
+            type: String,
+        },
+        skipped: { default: false, type: Boolean },
+        translation: { required: true, type: String },
+        translationLang: {
+            enum: Object.values(LanguageCode),
+            required: true,
+            type: String,
+        },
+        updatedAt: { default: Date.now, type: Date },
+        userId: { ref: 'User', required: true, type: Schema.Types.ObjectId },
+        word: { required: true, type: String },
+    },
+    {
+        timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' },
+    },
+);
 
 suggestionSchema.index({ userId: 1 });
-suggestionSchema.index({ userId: 1, lemmaId: 1, translationLang: 1 }, { unique: true });
+suggestionSchema.index({ lemmaId: 1, translationLang: 1, userId: 1 }, { unique: true });
 
 export default model<Suggestion>('Suggestion', suggestionSchema, 'suggestions');

@@ -1,15 +1,15 @@
 {
-  "compilerOptions": {
-    "target": "ES2020",
-    "module": "CommonJS",
-    "rootDir": "src",
-    "outDir": "dist",
-    "esModuleInterop": true,
-    "strict": true,
-    "incremental": true,
-    "skipLibCheck": true,
-    "typeRoots": ["./node_modules/@types"],
-    "resolveJsonModule": true
-  },
-  "include": ["src", "src/types/express.d.ts"]
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "CommonJS",
+        "rootDir": "src",
+        "outDir": "dist",
+        "esModuleInterop": true,
+        "strict": true,
+        "incremental": true,
+        "skipLibCheck": true,
+        "typeRoots": ["./node_modules/@types"],
+        "resolveJsonModule": true
+    },
+    "include": ["src", "src/types/express.d.ts"]
 }

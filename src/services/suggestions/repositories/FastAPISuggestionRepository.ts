@@ -1,23 +1,25 @@
-import { FastAPIClient } from "../../clients/FastAPIClient";
-import { GetUserSuggestionsResponse } from "../../../types/api/GetUserSuggestionsResponse";
-import { SuggestionsRepository } from "../../../types/api/SuggestionsRepository";
-import { GetUserSuggestionsParams } from "../../../types/api/GetUserSuggestionsParams";
+import { GetUserSuggestionsParams } from '../../../types/api/GetUserSuggestionsParams';
+import { GetUserSuggestionsResponse } from '../../../types/api/GetUserSuggestionsResponse';
+import { SuggestionsRepository } from '../../../types/api/SuggestionsRepository';
+import { FastAPIClient } from '../../clients/FastAPIClient';
 
 export class FastAPISuggestionsRepository implements SuggestionsRepository {
-  private client: FastAPIClient;
+    private client: FastAPIClient;
 
-  constructor(client?: FastAPIClient) {
-    this.client = client || new FastAPIClient();
-  }
+    constructor(client?: FastAPIClient) {
+        this.client = client || new FastAPIClient();
+    }
 
-  async getUserSuggestions(params: GetUserSuggestionsParams): Promise<GetUserSuggestionsResponse> {
-    const { userId, mainLang, translationLang, limit, level } = params;
-    return this.client.get<GetUserSuggestionsResponse>("/suggestions", {
-      user_id: userId,
-      main_lang: mainLang,
-      translation_lang: translationLang,
-      limit,
-      level
-    });
-  }
+    async getUserSuggestions(
+        params: GetUserSuggestionsParams,
+    ): Promise<GetUserSuggestionsResponse> {
+        const { level, limit, mainLang, translationLang, userId } = params;
+        return this.client.get<GetUserSuggestionsResponse>('/suggestions', {
+            level,
+            limit,
+            main_lang: mainLang,
+            translation_lang: translationLang,
+            user_id: userId,
+        });
+    }
 }

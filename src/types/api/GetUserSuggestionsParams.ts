@@ -1,9 +1,9 @@
-import { LanguageCodeValue } from "../../constants/languageCodes";
+import { LanguageCodeValue } from '../../constants/languageCodes';
 
 export interface GetUserSuggestionsParams {
-  userId: string;
-  mainLang: LanguageCodeValue;
-  translationLang: LanguageCodeValue;
-  limit: number;
-  level: number;
+    userId: string;
+    mainLang: LanguageCodeValue;
+    translationLang: LanguageCodeValue;
+    limit: number;
+    level: number;
 }
