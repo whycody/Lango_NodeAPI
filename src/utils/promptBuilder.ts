@@ -17,6 +17,7 @@ export const buildTranslatingWordsPrompt = (
     let base = `You are a language learning assistant. Task: Process a list of words and return translations and examples. Rules: \n- `;
 
     const rules = [
+        `CRITICAL: All translations and target of examples MUST be written exclusively in ${translationLang.languageName}`,
         'Keep output short and compact',
         'Use natural, common translations only; skip rare, archaic, or forced literal ones',
         'Add a second translation only if it has a significantly different meaning',
