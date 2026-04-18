@@ -18,17 +18,11 @@ export const buildTranslatingWordsPrompt = (
 
     const rules = [
         'Keep output short and compact',
-        'Prioritize natural, common translations over literal/archaic ones',
-        'Include second translation only if it has significantly different meaning or context',
-        'Never include unnatural or forced literal translations as secondary',
-        'Prefer common meanings',
-        'Skip rare/archaic meanings',
-        'If invalid word, mark isValid=false',
-        'If identical words but not borrowed, mark isValid=false',
-        'If proper name, mark isValid=false',
-        'If overly technical word, mark isValid=false',
-        'Generate max 1 example per word',
-        'No explanations unless invalid',
+        'Use natural, common translations only; skip rare, archaic, or forced literal ones',
+        'Add a second translation only if it has a significantly different meaning',
+        'Do not include the source word in translations if real translations exist',
+        'Mark isValid=false for: invalid words, proper names, overly technical terms, or identical non-borrowed words',
+        'Max 1 example per word; no explanations unless invalid',
     ];
 
     base += rules.join(', \n- ') + '. ';
