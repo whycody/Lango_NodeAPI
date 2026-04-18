@@ -97,7 +97,7 @@ router.patch('/suggestions-in-session', authenticate, async (req: Request, res: 
             { suggestionsInSession: enabled },
             { new: true, select: 'suggestionsInSession' },
         );
-        res.json(user?.suggestionsInSession);
+        res.json({ enabled: user?.suggestionsInSession });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Failed to update suggestions in session' });
