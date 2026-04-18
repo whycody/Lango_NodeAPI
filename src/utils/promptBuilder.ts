@@ -23,7 +23,7 @@ export const buildTranslatingWordsPrompt = (
         'Add a second translation only if it has a significantly different meaning',
         'Do not include the source word in translations if real translations exist',
         'Mark isValid=false for: invalid words, proper names, overly technical terms, or identical non-borrowed words',
-        'Max 1 example per word; no explanations unless invalid',
+        'Max 1 example per word: a short, natural sentence showing how the word is used in context; no explanations unless invalid',
     ];
 
     base += rules.join(', \n- ') + '. ';
