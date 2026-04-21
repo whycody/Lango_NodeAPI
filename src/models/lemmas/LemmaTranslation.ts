@@ -11,6 +11,7 @@ export interface LemmaTranslation extends Document, LemmaTranslationAttr {
 const lemmaTranslationSchema = new Schema<LemmaTranslation>(
     {
         addCount: { default: 0, type: Number },
+        containsUnknownTranslations: { default: false, type: Boolean },
         example: {
             default: null,
             type: {
@@ -32,6 +33,7 @@ const lemmaTranslationSchema = new Schema<LemmaTranslation>(
             required: true,
             type: String,
         },
+        validated: { default: false, type: Boolean },
     },
     { timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' } },
 );

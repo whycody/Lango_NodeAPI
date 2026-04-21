@@ -17,6 +17,7 @@ jest.mock('../../../models/core/Suggestion');
 jest.mock('../../../models/lemmas/LemmaTranslation');
 jest.mock('../../../models/core/User');
 jest.mock('../utils/getLemmasToTranslate');
+jest.mock('../utils/markUnknownTranslations');
 jest.mock('../utils/matchTranslationsToLemmas');
 jest.mock('../translateWords');
 jest.mock('../utils/reports/saveGPTReport');
