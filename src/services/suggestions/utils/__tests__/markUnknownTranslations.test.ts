@@ -11,7 +11,7 @@ const makeTranslation = (
     overrides: Partial<LemmaTranslationAttr> = {},
 ): LemmaTranslationAttr => ({
     addCount: 0,
-    containsNotKnownTranslations: false,
+    containsUnknownTranslations: false,
     example: null,
     isValid: translation !== null,
     lemmaId: new Types.ObjectId(),
@@ -26,9 +26,7 @@ const makeTranslation = (
 const mockKnownLemmas = (knownLemmaStrings: string[]) => {
     (Lemma.find as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnValue({
-            lean: jest
-                .fn()
-                .mockResolvedValue(knownLemmaStrings.map(lemma => ({ lemma }))),
+            lean: jest.fn().mockResolvedValue(knownLemmaStrings.map(lemma => ({ lemma }))),
         }),
     });
 };
@@ -38,22 +36,22 @@ describe('markUnknownTranslations', () => {
         jest.clearAllMocks();
     });
 
-    it('sets containsNotKnownTranslations=true when any word is not in Lemma collection', async () => {
+    it('sets containsUnknownTranslations=true when any word is not in Lemma collection', async () => {
         const translations = [makeTranslation('dom, gibberish')];
         mockKnownLemmas(['dom']);
 
         await markUnknownTranslations(translations, 'en');
 
-        expect(translations[0].containsNotKnownTranslations).toBe(true);
+        expect(translations[0].containsUnknownTranslations).toBe(true);
     });
 
-    it('keeps containsNotKnownTranslations=false when all words are known', async () => {
+    it('keeps containsUnknownTranslations=false when all words are known', async () => {
         const translations = [makeTranslation('dom, mieszkanie')];
         mockKnownLemmas(['dom', 'mieszkanie']);
 
         await markUnknownTranslations(translations, 'en');
 
-        expect(translations[0].containsNotKnownTranslations).toBe(false);
+        expect(translations[0].containsUnknownTranslations).toBe(false);
     });
 
     it('is case-insensitive', async () => {
@@ -62,7 +60,7 @@ describe('markUnknownTranslations', () => {
 
         await markUnknownTranslations(translations, 'en');
 
-        expect(translations[0].containsNotKnownTranslations).toBe(false);
+        expect(translations[0].containsUnknownTranslations).toBe(false);
     });
 
     it('skips translations with null translation (failed)', async () => {
@@ -71,7 +69,7 @@ describe('markUnknownTranslations', () => {
 
         await markUnknownTranslations(translations, 'en');
 
-        expect(translations[0].containsNotKnownTranslations).toBe(false);
+        expect(translations[0].containsUnknownTranslations).toBe(false);
         expect(Lemma.find).not.toHaveBeenCalled();
     });
 
@@ -81,7 +79,7 @@ describe('markUnknownTranslations', () => {
 
         await markUnknownTranslations(translations, 'en');
 
-        expect(translations[0].containsNotKnownTranslations).toBe(true);
+        expect(translations[0].containsUnknownTranslations).toBe(true);
     });
 
     it('processes multiple translations in one batch query', async () => {
@@ -94,10 +92,32 @@ describe('markUnknownTranslations', () => {
 
         await markUnknownTranslations(translations, 'en');
 
-        expect(translations[0].containsNotKnownTranslations).toBe(false);
-        expect(translations[1].containsNotKnownTranslations).toBe(false);
-        expect(translations[2].containsNotKnownTranslations).toBe(true);
+        expect(translations[0].containsUnknownTranslations).toBe(false);
+        expect(translations[1].containsUnknownTranslations).toBe(false);
+        expect(translations[2].containsUnknownTranslations).toBe(true);
         expect(Lemma.find).toHaveBeenCalledTimes(1);
+    });
+
+    it('strips "to " prefix for English translations before lookup', async () => {
+        const translations = [makeTranslation('to sign, to wake')];
+        mockKnownLemmas(['sign', 'wake']);
+
+        await markUnknownTranslations(translations, 'en');
+
+        expect(translations[0].containsUnknownTranslations).toBe(false);
+        expect(Lemma.find).toHaveBeenCalledWith({
+            lang: 'en',
+            lemma: { $in: ['sign', 'wake'] },
+        });
+    });
+
+    it('does not strip "to " prefix for non-English translations', async () => {
+        const translations = [makeTranslation('to robi')];
+        mockKnownLemmas(['robi']);
+
+        await markUnknownTranslations(translations, 'pl');
+
+        expect(translations[0].containsUnknownTranslations).toBe(true);
     });
 
     it('queries Lemma with translationLang filter', async () => {

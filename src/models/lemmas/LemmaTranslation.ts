@@ -11,7 +11,7 @@ export interface LemmaTranslation extends Document, LemmaTranslationAttr {
 const lemmaTranslationSchema = new Schema<LemmaTranslation>(
     {
         addCount: { default: 0, type: Number },
-        containsNotKnownTranslations: { default: false, type: Boolean },
+        containsUnknownTranslations: { default: false, type: Boolean },
         example: {
             default: null,
             type: {

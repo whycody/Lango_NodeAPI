@@ -1,11 +1,18 @@
-import { LanguageCodeValue } from '../../../constants/languageCodes';
+import { LanguageCode, LanguageCodeValue } from '../../../constants/languageCodes';
 import Lemma from '../../../models/lemmas/Lemma';
 import { LemmaTranslationAttr } from '../../../types/models/LemmaTranslationAttr';
 
-const splitTranslation = (translation: string): string[] =>
+const normalizeForLookup = (word: string, translationLang: LanguageCodeValue): string => {
+    if (translationLang === LanguageCode.En && word.startsWith('to ')) {
+        return word.slice(3);
+    }
+    return word;
+};
+
+const splitTranslation = (translation: string, translationLang: LanguageCodeValue): string[] =>
     translation
         .split(',')
-        .map(word => word.trim().toLowerCase())
+        .map(word => normalizeForLookup(word.trim().toLowerCase(), translationLang))
         .filter(word => word.length > 0);
 
 export async function markUnknownTranslations(
@@ -15,7 +22,7 @@ export async function markUnknownTranslations(
     const allWords = new Set<string>();
     for (const t of translationsToInsert) {
         if (!t.translation) continue;
-        for (const word of splitTranslation(t.translation)) {
+        for (const word of splitTranslation(t.translation, translationLang)) {
             allWords.add(word);
         }
     }
@@ -33,9 +40,9 @@ export async function markUnknownTranslations(
 
     for (const t of translationsToInsert) {
         if (!t.translation) continue;
-        const words = splitTranslation(t.translation);
+        const words = splitTranslation(t.translation, translationLang);
         if (words.some(w => !knownSet.has(w))) {
-            t.containsNotKnownTranslations = true;
+            t.containsUnknownTranslations = true;
         }
     }
 }

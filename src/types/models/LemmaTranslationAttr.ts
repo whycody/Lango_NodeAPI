@@ -14,6 +14,6 @@ export type LemmaTranslationAttr = {
     } | null;
     addCount: number;
     skipCount: number;
-    containsNotKnownTranslations: boolean;
+    containsUnknownTranslations: boolean;
     validated: boolean;
 };

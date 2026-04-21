@@ -3,7 +3,7 @@ import { LemmaTranslationAttr } from '../../../../types/models/LemmaTranslationA
 
 type LemmaTranslationDefaults =
     | 'addCount'
-    | 'containsNotKnownTranslations'
+    | 'containsUnknownTranslations'
     | 'skipCount'
     | 'validated';
 
@@ -11,7 +11,7 @@ export const createLemmaTranslation = (
     attrs: PartialBy<LemmaTranslationAttr, LemmaTranslationDefaults>,
 ): LemmaTranslationAttr => ({
     addCount: 0,
-    containsNotKnownTranslations: false,
+    containsUnknownTranslations: false,
     skipCount: 0,
     validated: false,
     ...attrs,
