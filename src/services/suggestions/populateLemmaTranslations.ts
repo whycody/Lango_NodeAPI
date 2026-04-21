@@ -34,7 +34,7 @@ export async function populateLemmaTranslations(
         for (const translationLang of languages) {
             if (mainLang === translationLang) continue;
             for (const level of LANGUAGE_LEVELS) {
-                const entry = await populateForTriple(
+                const entry = await populateForPairAndLevel(
                     mainLang,
                     translationLang,
                     level,
@@ -49,7 +49,7 @@ export async function populateLemmaTranslations(
     return results;
 }
 
-async function populateForTriple(
+async function populateForPairAndLevel(
     mainLang: LanguageCodeValue,
     translationLang: LanguageCodeValue,
     level: number,
