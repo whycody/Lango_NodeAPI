@@ -7,12 +7,17 @@ const requireAdmin = async (req: Request, res: Response, next: NextFunction) => 
         return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const user = await User.findById(req.userId).select('+admin').lean();
-    if (!user?.admin) {
-        return res.status(403).json({ message: 'Forbidden' });
-    }
+    try {
+        const user = await User.findById(req.userId).select('+admin').lean();
 
-    next();
+        if (!user?.admin) {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
+
+        next();
+    } catch (err) {
+        next(err);
+    }
 };
 
 export default requireAdmin;

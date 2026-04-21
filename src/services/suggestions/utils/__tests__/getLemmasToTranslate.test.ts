@@ -112,11 +112,13 @@ describe('getLemmasIdsToTranslate', () => {
 
         await getLemmasIdsToTranslate(lemmaIds, mainLang, translationLang, medianFreq, 5);
 
-        const pipeline = (Lemma.aggregate as jest.Mock).mock.calls[0][0];
-        const matchStage = pipeline.find((stage: { $match?: unknown }) => stage.$match);
-        const ninIds: Types.ObjectId[] = matchStage.$match._id.$nin;
+        type MatchStage = { $match: { _id: { $nin: Types.ObjectId[] } } };
+        const pipeline = (Lemma.aggregate as jest.Mock).mock.calls[0][0] as MatchStage[];
 
-        const ninIdStrings = ninIds.map(id => id.toString());
+        const matchStage = pipeline.find(stage => stage.$match !== undefined);
+        if (!matchStage) throw new Error('expected a $match stage in the pipeline');
+
+        const ninIdStrings = matchStage.$match._id.$nin.map(id => id.toString());
         expect(ninIdStrings).toContain(existingTranslatedId.toString());
         for (const poolId of lemmaIds) {
             expect(ninIdStrings).toContain(poolId);
