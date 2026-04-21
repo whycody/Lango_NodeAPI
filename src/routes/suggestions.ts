@@ -1,6 +1,7 @@
 import { Request, Response, Router } from 'express';
 
 import { isLanguageCodeValue } from '../constants/languageCodes';
+import { SUGGESTIONS_TO_INSERT } from '../constants/suggestions';
 import authenticate from '../middleware/auth';
 import requireAdmin from '../middleware/requireAdmin';
 import Suggestion from '../models/core/Suggestion';
@@ -99,9 +100,16 @@ router.post(
     requireAdmin,
     async (req: Request, res: Response) => {
         const count = Number(req.query.count);
+        const skipLimit = req.query.skipLimit === 'true';
 
         if (!Number.isFinite(count) || !Number.isInteger(count) || count < 1) {
             return res.status(400).json({ error: 'count must be a positive integer' });
+        }
+
+        if (!skipLimit && count > SUGGESTIONS_TO_INSERT) {
+            return res.status(400).json({
+                error: `count must not exceed ${SUGGESTIONS_TO_INSERT} (pass skipLimit=true to override)`,
+            });
         }
 
         req.setTimeout(0);
