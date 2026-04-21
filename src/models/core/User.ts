@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import { Document, model, Schema } from 'mongoose';
 
 import { LanguageCode, LanguageCodeValue } from '../../constants/languageCodes';
+import { LANGUAGE_LEVELS, LanguageLevelValue } from '../../constants/languageLevels';
 import { SessionModel, SessionModelValue } from '../../constants/sessionModels';
 
 interface RefreshToken {
@@ -38,7 +39,7 @@ export interface UserStats {
 
 export type LanguageLevel = {
     language: LanguageCodeValue;
-    level: 1 | 2 | 3 | 4 | 5;
+    level: LanguageLevelValue;
 };
 
 interface User extends Document {
@@ -72,7 +73,7 @@ const languageLevelSchema = new Schema(
             type: String,
         },
         level: {
-            enum: [1, 2, 3, 4, 5],
+            enum: LANGUAGE_LEVELS,
             required: true,
             type: Number,
         },

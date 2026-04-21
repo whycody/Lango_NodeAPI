@@ -38,7 +38,7 @@ export async function getLemmasIdsToTranslate(
         const additionalCandidates = await Lemma.aggregate([
             {
                 $match: {
-                    _id: { $nin: alreadyTranslatedLemmaIds },
+                    _id: { $nin: [...alreadyTranslatedLemmaIds, ...lemmaObjectIds] },
                     lang: mainLang,
                 },
             },

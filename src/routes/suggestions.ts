@@ -2,8 +2,10 @@ import { Request, Response, Router } from 'express';
 
 import { isLanguageCodeValue } from '../constants/languageCodes';
 import authenticate from '../middleware/auth';
+import requireAdmin from '../middleware/requireAdmin';
 import Suggestion from '../models/core/Suggestion';
 import { getSuggestionsForUser } from '../services/suggestions/getUserSuggestions';
+import { populateLemmaTranslations } from '../services/suggestions/populateLemmaTranslations';
 import { mergeSuggestionFlags } from '../services/utils/mergeSuggestionFlags';
 import { updateLemmaTranslationCounts } from '../services/utils/translationService';
 import { SuggestionAttr } from '../types/models/SuggestionAttr';
@@ -90,5 +92,31 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
 
     res.json(syncedSuggestions);
 });
+
+router.post(
+    '/admin/populate-translations',
+    authenticate,
+    requireAdmin,
+    async (req: Request, res: Response) => {
+        const count = Number(req.query.count);
+
+        if (!Number.isFinite(count) || !Number.isInteger(count) || count < 1) {
+            return res.status(400).json({ error: 'count must be a positive integer' });
+        }
+
+        req.setTimeout(0);
+
+        try {
+            const results = await populateLemmaTranslations(count);
+            res.json({ results });
+        } catch (err) {
+            console.error(
+                'Failed to populate translations:',
+                err instanceof Error ? err.message : err,
+            );
+            res.status(500).json({ error: 'Failed to populate translations' });
+        }
+    },
+);
 
 export default router;
