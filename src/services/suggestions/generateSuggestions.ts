@@ -16,6 +16,7 @@ import { createLemmaTranslation } from './utils/fabrics/createLemmaTranslation';
 import { createSuggestion } from './utils/fabrics/createSuggestion';
 import { getLemmasIdsToTranslate } from './utils/getLemmasToTranslate';
 import { mapArrayToLemmaTranslations } from './utils/mapToLemmaTranslation';
+import { markUnknownTranslations } from './utils/markUnknownTranslations';
 import { matchTranslationsToLemmas } from './utils/matchTranslationsToLemmas';
 import { saveGPTReport } from './utils/reports/saveGPTReport';
 import { saveSuggestionsReport } from './utils/reports/saveSuggestionsReport';
@@ -130,6 +131,10 @@ export const generateSuggestionsInBackground = async (
         const skippedTranslations = insertedTranslations
             .filter(t => t.translation === null)
             .map(t => t.word);
+
+        if (translationsToInsert.length > 0) {
+            await markUnknownTranslations(translationsToInsert, translationLang);
+        }
 
         await Promise.all([
             saveSuggestionsReport({

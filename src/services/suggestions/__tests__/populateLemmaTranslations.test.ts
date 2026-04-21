@@ -10,6 +10,7 @@ import { saveGPTReport } from '../utils/reports/saveGPTReport';
 jest.mock('../../../models/lemmas/Lemma');
 jest.mock('../../../models/lemmas/LemmaTranslation');
 jest.mock('../utils/getLemmasToTranslate');
+jest.mock('../utils/markUnknownTranslations');
 jest.mock('../utils/matchTranslationsToLemmas');
 jest.mock('../translateWords');
 jest.mock('../utils/reports/saveGPTReport');

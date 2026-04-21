@@ -12,6 +12,7 @@ import { translateWords } from './translateWords';
 import { createLemmaTranslation } from './utils/fabrics/createLemmaTranslation';
 import { getLemmasIdsToTranslate } from './utils/getLemmasToTranslate';
 import { mapArrayToLemmaTranslations } from './utils/mapToLemmaTranslation';
+import { markUnknownTranslations } from './utils/markUnknownTranslations';
 import { matchTranslationsToLemmas } from './utils/matchTranslationsToLemmas';
 import { saveGPTReport } from './utils/reports/saveGPTReport';
 
@@ -132,6 +133,8 @@ async function populateForPairAndLevel(
         }
 
         if (translationsToInsert.length === 0) break;
+
+        await markUnknownTranslations(translationsToInsert, translationLang);
 
         await LemmaTranslation.insertMany(mapArrayToLemmaTranslations(translationsToInsert), {
             ordered: false,
