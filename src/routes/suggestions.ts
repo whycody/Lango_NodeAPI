@@ -25,6 +25,12 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
             .json({ error: 'mainLang and translationLang must be valid language codes' });
     }
 
+    if (mainLang === translationLang) {
+        return res
+            .status(400)
+            .json({ error: 'mainLang and translationLang must be different' });
+    }
+
     try {
         const suggestions = await getSuggestionsForUser(
             userId,

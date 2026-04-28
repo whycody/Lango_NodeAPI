@@ -4,7 +4,10 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import jwt from 'jsonwebtoken';
 
 import authenticate from '../middleware/auth';
+import Session from '../models/core/Session';
+import Suggestion from '../models/core/Suggestion';
 import User from '../models/core/User';
+import Word from '../models/core/Word';
 import { removeTokensWithDeviceId } from '../services/utils/removeTokensWithDeviceId';
 import {
     FacebookLoginRequest,
@@ -189,5 +192,26 @@ router.post(
         }
     },
 );
+
+router.delete('/auth/account', authenticate, async (req: Request, res: Response) => {
+    const userId = req.userId!;
+
+    try {
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        await Promise.all([
+            Session.deleteMany({ userId }),
+            Word.deleteMany({ userId }),
+            Suggestion.deleteMany({ userId }),
+            User.findByIdAndDelete(userId),
+        ]);
+
+        res.json({ message: 'Account deleted successfully' });
+    } catch (err) {
+        console.error('Failed to delete account:', err instanceof Error ? err.message : err);
+        res.status(500).json({ message: 'Failed to delete account' });
+    }
+});
 
 export default router;
