@@ -92,25 +92,24 @@ router.post(
 );
 
 router.post('/login/apple', async (req: Request, res: Response) => {
-    const { deviceId, fullName, identityToken, timezone } = req.body;
+    const { accessToken, deviceId, fullName, timezone } = req.body;
 
-    if (!identityToken || !deviceId) {
+    if (!accessToken || !deviceId) {
         return res.status(400).json({
-            message: 'identityToken and deviceId are required',
+            message: 'accessToken and deviceId are required',
         });
     }
 
     try {
         const appleJWKS = createRemoteJWKSet(new URL('https://appleid.apple.com/auth/keys'));
 
-        const { payload } = await jwtVerify(identityToken, appleJWKS, {
+        const { payload } = await jwtVerify(accessToken, appleJWKS, {
             audience: process.env.APPLE_BUNDLE_ID,
             issuer: 'https://appleid.apple.com',
         });
 
         const providerId = payload.sub as string;
         const email = payload.email as string | undefined;
-        const emailVerified = payload.email_verified === 'true';
 
         const updateData: {
             email?: string;
@@ -118,8 +117,8 @@ router.post('/login/apple', async (req: Request, res: Response) => {
             timezone?: string;
         } = { timezone };
 
-        if (email && emailVerified) updateData.email = email;
-        if (fullName) updateData.name = fullName;
+        if (email && payload.email_verified) updateData.email = email;
+        updateData.name = fullName ?? '';
 
         const user = await User.findOneAndUpdate(
             { provider: 'apple', providerId },
@@ -133,11 +132,12 @@ router.post('/login/apple', async (req: Request, res: Response) => {
             { new: true, upsert: true },
         );
 
-        const accessToken = user.generateAccessToken();
-        const refreshToken = user.registerDeviceAndGenerateRefreshToken(deviceId);
+        const userAccessToken = user.generateAccessToken();
+        const userRefreshToken = user.registerDeviceAndGenerateRefreshToken(deviceId);
 
-        res.json({ accessToken, refreshToken });
-    } catch {
+        res.json({ accessToken: userAccessToken, refreshToken: userRefreshToken });
+    } catch (e) {
+        console.error('Apple login error:', e);
         res.status(401).json({ message: 'Invalid Apple identity token' });
     }
 });

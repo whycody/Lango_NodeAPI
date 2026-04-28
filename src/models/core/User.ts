@@ -89,7 +89,7 @@ const userSchema = new Schema<User>({
         type: [languageLevelSchema],
     },
     mainLang: { type: String },
-    name: { required: true, type: String },
+    name: { required: false, type: String },
     notifications: {
         deviceTokens: [
             {
