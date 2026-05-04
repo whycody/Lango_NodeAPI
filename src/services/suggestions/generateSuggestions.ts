@@ -26,6 +26,7 @@ export const generateSuggestionsInBackground = async (
     userId: string,
     mainLang: LanguageCodeValue,
     translationLang: LanguageCodeValue,
+    skipTranslation: boolean = false,
 ) => {
     const key = `${userId}_${mainLang}_${translationLang}`;
 
@@ -93,7 +94,7 @@ export const generateSuggestionsInBackground = async (
         let translationsToInsert: LemmaTranslationAttr[] = [];
         let lemmasToUpdate: LemmaUpdate[] = [];
 
-        if (lemmasToTranslate.length > 0) {
+        if (lemmasToTranslate.length > 0 && !skipTranslation) {
             const wordsToTranslate = lemmasToTranslate.map(l => l.lemma);
             const { fetchMetadata, translations } = await translateWords(
                 mainLang,

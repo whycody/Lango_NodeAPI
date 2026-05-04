@@ -5,6 +5,10 @@ import { SUGGESTIONS_TO_INSERT } from '../constants/suggestions';
 import authenticate from '../middleware/auth';
 import requireAdmin from '../middleware/requireAdmin';
 import Suggestion from '../models/core/Suggestion';
+import {
+    getExampleFlashcards,
+    isLanguageLevelValue,
+} from '../services/suggestions/getExampleFlashcards';
 import { getSuggestionsForUser } from '../services/suggestions/getUserSuggestions';
 import { populateLemmaTranslations } from '../services/suggestions/populateLemmaTranslations';
 import { mergeSuggestionFlags } from '../services/utils/mergeSuggestionFlags';
@@ -14,6 +18,50 @@ import { SuggestionAttr } from '../types/models/SuggestionAttr';
 const router = Router();
 
 const nowUTC = () => new Date().toISOString();
+
+router.get('/examples', async (req: Request, res: Response) => {
+    const { count, level, mainLang, translationLang } = req.query;
+
+    if (!isLanguageCodeValue(mainLang) || !isLanguageCodeValue(translationLang)) {
+        return res
+            .status(400)
+            .json({ error: 'mainLang and translationLang must be valid language codes' });
+    }
+
+    if (mainLang === translationLang) {
+        return res.status(400).json({ error: 'mainLang and translationLang must be different' });
+    }
+
+    if (!isLanguageLevelValue(level)) {
+        return res.status(400).json({ error: 'level must be an integer between 1 and 5' });
+    }
+
+    const parsedCount = Number(count);
+    if (
+        !Number.isFinite(parsedCount) ||
+        !Number.isInteger(parsedCount) ||
+        parsedCount < 1 ||
+        parsedCount > 50
+    ) {
+        return res.status(400).json({ error: 'count must be an integer between 1 and 50' });
+    }
+
+    try {
+        const flashcards = await getExampleFlashcards(
+            mainLang,
+            translationLang,
+            level,
+            parsedCount,
+        );
+        res.json(flashcards);
+    } catch (err) {
+        console.error(
+            'Failed to get example flashcards:',
+            err instanceof Error ? err.message : err,
+        );
+        res.status(500).json({ error: 'Failed to get example flashcards' });
+    }
+});
 
 router.get('/', authenticate, async (req: Request, res: Response) => {
     const userId = req.userId!;
@@ -26,9 +74,7 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
     }
 
     if (mainLang === translationLang) {
-        return res
-            .status(400)
-            .json({ error: 'mainLang and translationLang must be different' });
+        return res.status(400).json({ error: 'mainLang and translationLang must be different' });
     }
 
     try {

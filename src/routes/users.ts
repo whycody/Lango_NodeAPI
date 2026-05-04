@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 
 import authenticate from '../middleware/auth';
 import User from '../models/core/User';
+import { processOnboardingFlashcards } from '../services/suggestions/processOnboardingFlashcards';
 import { updateUserData } from '../services/utils/updateUserData';
 
 const router = express.Router();
@@ -104,9 +105,10 @@ router.patch('/suggestions-in-session', authenticate, async (req: Request, res: 
     }
 });
 
-router.put('/languages', authenticate, async (req: Request, res: Response) => {
+router.put('/data', authenticate, async (req: Request, res: Response) => {
     const userId = req.userId;
-    const { level, mainLang, translationLang } = req.body;
+    const { level, mainLang, selectedFlashcardsIds, skippedFlashcardsIds, translationLang } =
+        req.body;
 
     if (!userId) {
         return res.status(400).json({ message: 'User not found' });
@@ -128,6 +130,14 @@ router.put('/languages', authenticate, async (req: Request, res: Response) => {
         user.languageLevels = [{ language: mainLang, level }];
 
         await user.save();
+
+        await processOnboardingFlashcards(
+            userId,
+            mainLang,
+            translationLang,
+            selectedFlashcardsIds ?? [],
+            skippedFlashcardsIds ?? [],
+        );
 
         res.json({
             mainLang: user.mainLang,
