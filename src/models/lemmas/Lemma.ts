@@ -24,5 +24,6 @@ const lemmaSchema = new Schema<Lemma>(
 );
 
 lemmaSchema.index({ lang: 1, lemma: 1 }, { unique: true });
+lemmaSchema.index({ freq_z: 1, lang: 1 });
 
 export default model<Lemma>('Lemma', lemmaSchema, 'lemmas');
