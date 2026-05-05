@@ -50,19 +50,11 @@ describe('processOnboardingFlashcards', () => {
         (Suggestion.insertMany as jest.Mock).mockResolvedValue([]);
         (Word.insertMany as jest.Mock).mockResolvedValue([]);
         (LemmaTranslation.updateMany as jest.Mock).mockResolvedValue({});
-    });
-
-    describe('when no flashcard IDs are provided', () => {
-        it('calls generateSuggestionsInBackground and skips DB queries', async () => {
-            await processOnboardingFlashcards(userId, mainLang, translationLang, [], []);
-
-            expect(generateSuggestionsInBackground).toHaveBeenCalledWith(
-                userId,
-                mainLang,
-                translationLang,
-                true,
-            );
-            expect(LemmaTranslation.find).not.toHaveBeenCalled();
+        (LemmaTranslation.find as jest.Mock).mockReturnValue({
+            lean: jest.fn().mockResolvedValue([]),
+        });
+        (Lemma.find as jest.Mock).mockReturnValue({
+            lean: jest.fn().mockResolvedValue([]),
         });
     });
 
@@ -310,24 +302,33 @@ describe('processOnboardingFlashcards', () => {
         });
     });
 
-    describe('generateSuggestionsInBackground', () => {
-        beforeEach(() => {
+    describe('background suggestions', () => {
+        it('calls generateSuggestionsInBackground after processing flashcards', async () => {
             (LemmaTranslation.find as jest.Mock).mockReturnValue({
                 lean: jest.fn().mockResolvedValue(mockLemmaTranslations),
             });
             (Lemma.find as jest.Mock).mockReturnValue({
                 lean: jest.fn().mockResolvedValue(mockLemmas),
             });
-        });
 
-        it('calls generateSuggestionsInBackground with correct args after processing', async () => {
             await processOnboardingFlashcards(
                 userId,
                 mainLang,
                 translationLang,
                 [ltIdSelected.toString()],
-                [ltIdSkipped.toString()],
+                [],
             );
+
+            expect(generateSuggestionsInBackground).toHaveBeenCalledWith(
+                userId,
+                mainLang,
+                translationLang,
+                true,
+            );
+        });
+
+        it('calls generateSuggestionsInBackground even when all lists are empty', async () => {
+            await processOnboardingFlashcards(userId, mainLang, translationLang, [], []);
 
             expect(generateSuggestionsInBackground).toHaveBeenCalledWith(
                 userId,

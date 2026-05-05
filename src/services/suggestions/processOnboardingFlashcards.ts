@@ -18,7 +18,7 @@ export const processOnboardingFlashcards = async (
 ) => {
     const allIds = [...selectedFlashcardsIds, ...skippedFlashcardsIds];
     if (allIds.length === 0) {
-        generateSuggestionsInBackground(userId, mainLang, translationLang, true).catch(err =>
+        await generateSuggestionsInBackground(userId, mainLang, translationLang, true).catch(err =>
             console.error('Error generating suggestions in background', err),
         );
         return;

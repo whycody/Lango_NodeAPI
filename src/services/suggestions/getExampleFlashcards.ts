@@ -4,6 +4,9 @@ import { LanguageCodeValue } from '../../constants/languageCodes';
 import { LANGUAGE_LEVELS, LanguageLevelValue } from '../../constants/languageLevels';
 import Lemma from '../../models/lemmas/Lemma';
 import LemmaTranslation from '../../models/lemmas/LemmaTranslation';
+import { getMedianFreq } from '../../utils/median';
+
+export { getMedianFreq };
 
 export type ExampleFlashcard = {
     id: string;
@@ -11,32 +14,8 @@ export type ExampleFlashcard = {
     translation: string;
 };
 
-const LEVEL_PERCENTILES: Record<LanguageLevelValue, number> = {
-    1: 0.001,
-    2: 0.01,
-    3: 0.1,
-    4: 0.3,
-    5: 0.7,
-};
-
 export function isLanguageLevelValue(value: any): value is LanguageLevelValue {
     return (LANGUAGE_LEVELS as readonly number[]).includes(Number(value));
-}
-
-async function getMedianFreq(
-    mainLang: LanguageCodeValue,
-    level: LanguageLevelValue,
-): Promise<number> {
-    const percentile = 1 - LEVEL_PERCENTILES[level];
-    const total = await Lemma.countDocuments({ lang: mainLang });
-    if (total === 0) return 0.5;
-    const skip = Math.min(Math.floor(percentile * total), total - 1);
-    const [doc] = await Lemma.find({ lang: mainLang })
-        .sort({ freq_z: 1 })
-        .skip(skip)
-        .limit(1)
-        .lean();
-    return doc?.freq_z ?? 0.5;
 }
 
 async function getScoredLemmaIds(
