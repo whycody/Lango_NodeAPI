@@ -14,7 +14,7 @@ import { FastAPISuggestionsRepository } from './repositories/FastAPISuggestionRe
 import { translateWords } from './translateWords';
 import { createLemmaTranslation } from './utils/fabrics/createLemmaTranslation';
 import { createSuggestion } from './utils/fabrics/createSuggestion';
-import { getLemmasIdsToTranslate } from './utils/getLemmasToTranslate';
+import { getLemmasToTranslate } from './utils/getLemmasToTranslate';
 import { mapArrayToLemmaTranslations } from './utils/mapToLemmaTranslation';
 import { markUnknownTranslations } from './utils/markUnknownTranslations';
 import { matchTranslationsToLemmas } from './utils/matchTranslationsToLemmas';
@@ -46,27 +46,22 @@ export const generateSuggestionsInBackground = async (
         const { median_freq: medianFreq, suggested_lemmas_ids: suggestedLemmasIds } =
             suggestionsResponse;
 
-        const suggestedLemmas = await Lemma.find({
-            _id: { $in: suggestedLemmasIds },
-        }).lean();
+        const [suggestedLemmas, translatedLemmasTranslations] = await Promise.all([
+            Lemma.find({ _id: { $in: suggestedLemmasIds } }).lean<LemmaAttrWithId[]>(),
+            LemmaTranslation.find({
+                lemmaId: { $in: suggestedLemmasIds },
+                translation: { $ne: null },
+                translationLang,
+            }).lean(),
+        ]);
 
-        const lemmasIdsToTranslate = await getLemmasIdsToTranslate(
-            suggestedLemmasIds,
+        const lemmasToTranslate = await getLemmasToTranslate(
+            suggestedLemmas,
             mainLang,
             translationLang,
             medianFreq,
             SUGGESTIONS_TO_TRANSLATE,
         );
-
-        const lemmasToTranslate = await Lemma.find({
-            _id: { $in: lemmasIdsToTranslate },
-        }).lean<LemmaAttrWithId[]>();
-
-        const translatedLemmasTranslations = await LemmaTranslation.find({
-            lemmaId: { $in: suggestedLemmasIds },
-            translation: { $ne: null },
-            translationLang,
-        }).lean();
 
         const translationMap = new Map(
             translatedLemmasTranslations.map(t => [
@@ -137,6 +132,13 @@ export const generateSuggestionsInBackground = async (
             await markUnknownTranslations(translationsToInsert, translationLang);
         }
 
+        const validLemmaIds = translationsToInsert
+            .filter(t => t.isValid && t.translation)
+            .map(t => t.lemmaId);
+        const invalidLemmaIds = translationsToInsert
+            .filter(t => !t.isValid || !t.translation)
+            .map(t => t.lemmaId);
+
         await Promise.all([
             saveSuggestionsReport({
                 insertedSuggestions,
@@ -150,6 +152,8 @@ export const generateSuggestionsInBackground = async (
             translationsToInsert.length > 0
                 ? LemmaTranslation.insertMany(mapArrayToLemmaTranslations(translationsToInsert), {
                       ordered: false,
+                  }).catch((err: any) => {
+                      if (err?.code !== 11000 && err?.cause?.code !== 11000) throw err;
                   })
                 : Promise.resolve(),
             suggestionsToInsert.length > 0
@@ -158,6 +162,18 @@ export const generateSuggestionsInBackground = async (
             ...lemmasToUpdate.map(l =>
                 Lemma.updateOne({ _id: l._id }, { $set: { prefix: l.prefix } }),
             ),
+            validLemmaIds.length > 0
+                ? Lemma.updateMany(
+                      { _id: { $in: validLemmaIds } },
+                      { $addToSet: { validTranslationsLanguages: translationLang } },
+                  )
+                : Promise.resolve(),
+            invalidLemmaIds.length > 0
+                ? Lemma.updateMany(
+                      { _id: { $in: invalidLemmaIds } },
+                      { $addToSet: { invalidTranslationsLanguages: translationLang } },
+                  )
+                : Promise.resolve(),
         ]);
     });
 };

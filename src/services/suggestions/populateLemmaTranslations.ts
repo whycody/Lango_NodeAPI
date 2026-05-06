@@ -10,7 +10,7 @@ import { LemmaUpdate } from '../../types/shared/LemmaUpdate';
 import { FastAPISuggestionsRepository } from './repositories/FastAPISuggestionRepository';
 import { translateWords } from './translateWords';
 import { createLemmaTranslation } from './utils/fabrics/createLemmaTranslation';
-import { getLemmasIdsToTranslate } from './utils/getLemmasToTranslate';
+import { getLemmasToTranslate } from './utils/getLemmasToTranslate';
 import { mapArrayToLemmaTranslations } from './utils/mapToLemmaTranslation';
 import { markUnknownTranslations } from './utils/markUnknownTranslations';
 import { matchTranslationsToLemmas } from './utils/matchTranslationsToLemmas';
@@ -72,40 +72,37 @@ async function populateForPairAndLevel(
         const medianFreq = response.median_freq;
         if (suggestedIds.length === 0) break;
 
-        const validTranslations = await LemmaTranslation.find({
-            lemmaId: { $in: suggestedIds },
-            translation: { $ne: null },
-            translationLang,
-        }).lean();
+        const [suggestedLemmas, validTranslations] = await Promise.all([
+            Lemma.find({ _id: { $in: suggestedIds } }).lean<LemmaAttrWithId[]>(),
+            LemmaTranslation.find({
+                lemmaId: { $in: suggestedIds },
+                translation: { $ne: null },
+                translationLang,
+            }).lean(),
+        ]);
 
         validInPool = validTranslations.length;
 
         if (validInPool >= suggestedIds.length) break;
 
-        const toTranslateIds = await getLemmasIdsToTranslate(
-            suggestedIds,
+        const toTranslate = await getLemmasToTranslate(
+            suggestedLemmas,
             mainLang,
             translationLang,
             medianFreq,
             SUGGESTIONS_TO_TRANSLATE,
         );
 
-        if (toTranslateIds.length === 0) break;
+        if (toTranslate.length === 0) break;
 
-        const lemmasToTranslate = await Lemma.find({
-            _id: { $in: toTranslateIds },
-        }).lean<LemmaAttrWithId[]>();
-
-        if (lemmasToTranslate.length === 0) break;
-
-        const wordsToTranslate = lemmasToTranslate.map(l => l.lemma);
+        const wordsToTranslate = toTranslate.map(l => l.lemma);
         const { fetchMetadata, translations } = await translateWords(
             mainLang,
             translationLang,
             wordsToTranslate,
         );
 
-        const matchedPairs = matchTranslationsToLemmas(translations, lemmasToTranslate);
+        const matchedPairs = matchTranslationsToLemmas(translations, toTranslate);
         await saveGPTReport(fetchMetadata);
 
         const translationsToInsert: LemmaTranslationAttr[] = [];
@@ -138,13 +135,34 @@ async function populateForPairAndLevel(
 
         await LemmaTranslation.insertMany(mapArrayToLemmaTranslations(translationsToInsert), {
             ordered: false,
+        }).catch((err: any) => {
+            if (err?.code !== 11000 && err?.cause?.code !== 11000) throw err;
         });
 
-        await Promise.all(
-            lemmasToUpdate.map(l =>
+        const validLemmaIds = translationsToInsert
+            .filter(t => t.isValid && t.translation)
+            .map(t => t.lemmaId);
+        const invalidLemmaIds = translationsToInsert
+            .filter(t => !t.isValid || !t.translation)
+            .map(t => t.lemmaId);
+
+        await Promise.all([
+            ...lemmasToUpdate.map(l =>
                 Lemma.updateOne({ _id: l._id }, { $set: { prefix: l.prefix } }),
             ),
-        );
+            validLemmaIds.length > 0
+                ? Lemma.updateMany(
+                      { _id: { $in: validLemmaIds } },
+                      { $addToSet: { validTranslationsLanguages: translationLang } },
+                  )
+                : Promise.resolve(),
+            invalidLemmaIds.length > 0
+                ? Lemma.updateMany(
+                      { _id: { $in: invalidLemmaIds } },
+                      { $addToSet: { invalidTranslationsLanguages: translationLang } },
+                  )
+                : Promise.resolve(),
+        ]);
 
         batches += 1;
     }

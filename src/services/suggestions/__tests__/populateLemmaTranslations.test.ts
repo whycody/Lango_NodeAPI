@@ -3,7 +3,7 @@ import LemmaTranslation from '../../../models/lemmas/LemmaTranslation';
 import { SuggestionsRepository } from '../../../types/api/SuggestionsRepository';
 import { populateLemmaTranslations } from '../populateLemmaTranslations';
 import { translateWords } from '../translateWords';
-import { getLemmasIdsToTranslate } from '../utils/getLemmasToTranslate';
+import { getLemmasToTranslate } from '../utils/getLemmasToTranslate';
 import { matchTranslationsToLemmas } from '../utils/matchTranslationsToLemmas';
 import { saveGPTReport } from '../utils/reports/saveGPTReport';
 
@@ -19,7 +19,7 @@ const lemmas = {
     casa: {
         _id: 'aaaaaaaaaaaaaaaaaaaaaaaa',
         freq: 1,
-        freq_z: 0,
+        freqZ: 0,
         lang: 'it',
         lemma: 'casa',
         prefix: 'la ',
@@ -28,7 +28,7 @@ const lemmas = {
     cane: {
         _id: 'cccccccccccccccccccccccc',
         freq: 1,
-        freq_z: 0,
+        freqZ: 0,
         lang: 'it',
         lemma: 'cane',
         prefix: '',
@@ -37,7 +37,7 @@ const lemmas = {
     gatto: {
         _id: 'bbbbbbbbbbbbbbbbbbbbbbbb',
         freq: 1,
-        freq_z: 0,
+        freqZ: 0,
         lang: 'it',
         lemma: 'gatto',
         prefix: '',
@@ -67,7 +67,7 @@ describe('populateLemmaTranslations', () => {
         (LemmaTranslation.insertMany as jest.Mock).mockResolvedValue([]);
         (Lemma.updateOne as jest.Mock).mockResolvedValue({});
         (saveGPTReport as jest.Mock).mockResolvedValue(undefined);
-        (getLemmasIdsToTranslate as jest.Mock).mockResolvedValue([]);
+        (getLemmasToTranslate as jest.Mock).mockResolvedValue([]);
     });
 
     it('iterates every pair × level and skips same-language pairs', async () => {
@@ -142,13 +142,15 @@ describe('populateLemmaTranslations', () => {
     it('translates untranslated pool lemmas and stops once all in pool have translations', async () => {
         const suggestedIds = [lemmas.casa._id, lemmas.cane._id];
 
-        const getUserSuggestions = jest.fn().mockImplementation(params =>
-            Promise.resolve(
-                isItPlLevel1(params)
-                    ? { median_freq: 0, suggested_lemmas_ids: suggestedIds }
-                    : emptyFastAPIResponse,
-            ),
-        );
+        const getUserSuggestions = jest
+            .fn()
+            .mockImplementation(params =>
+                Promise.resolve(
+                    isItPlLevel1(params)
+                        ? { median_freq: 0, suggested_lemmas_ids: suggestedIds }
+                        : emptyFastAPIResponse,
+                ),
+            );
 
         const insertedTranslations: Array<{ lemmaId: unknown; translation: string | null }> = [];
         (LemmaTranslation.find as jest.Mock).mockImplementation(() => ({
@@ -160,10 +162,7 @@ describe('populateLemmaTranslations', () => {
                 return Promise.resolve([]);
             },
         );
-        (getLemmasIdsToTranslate as jest.Mock).mockResolvedValue([
-            lemmas.casa._id,
-            lemmas.cane._id,
-        ]);
+        (getLemmasToTranslate as jest.Mock).mockResolvedValue([lemmas.casa, lemmas.cane]);
         (Lemma.find as jest.Mock).mockImplementation(() => ({
             lean: jest.fn().mockResolvedValue([lemmas.casa, lemmas.cane]),
         }));
@@ -208,20 +207,22 @@ describe('populateLemmaTranslations', () => {
         expect(target?.batches).toBe(1);
     });
 
-    it('delegates batch building (including top-up) to getLemmasIdsToTranslate', async () => {
+    it('delegates batch building (including top-up) to getLemmasToTranslate', async () => {
         const suggestedIds = [lemmas.casa._id];
 
-        const getUserSuggestions = jest.fn().mockImplementation(params =>
-            Promise.resolve(
-                isItPlLevel1(params)
-                    ? { median_freq: 42, suggested_lemmas_ids: suggestedIds }
-                    : emptyFastAPIResponse,
-            ),
-        );
+        const getUserSuggestions = jest
+            .fn()
+            .mockImplementation(params =>
+                Promise.resolve(
+                    isItPlLevel1(params)
+                        ? { median_freq: 42, suggested_lemmas_ids: suggestedIds }
+                        : emptyFastAPIResponse,
+                ),
+            );
 
         // Batch builder tops the single untranslated pool lemma up to 2 items
-        const topUpIds = [lemmas.casa._id, lemmas.gatto._id];
-        (getLemmasIdsToTranslate as jest.Mock).mockResolvedValue(topUpIds);
+        const topUpLemmas = [lemmas.casa, lemmas.gatto];
+        (getLemmasToTranslate as jest.Mock).mockResolvedValue(topUpLemmas);
 
         const insertedTranslations: Array<{ lemmaId: unknown; translation: string | null }> = [];
         (LemmaTranslation.find as jest.Mock).mockImplementation(() => ({
@@ -265,8 +266,8 @@ describe('populateLemmaTranslations', () => {
 
         await populateLemmaTranslations(1, makeRepo(getUserSuggestions));
 
-        expect(getLemmasIdsToTranslate).toHaveBeenCalledWith(
-            suggestedIds,
+        expect(getLemmasToTranslate).toHaveBeenCalledWith(
+            [lemmas.casa, lemmas.gatto],
             'it',
             'pl',
             42,
@@ -278,13 +279,15 @@ describe('populateLemmaTranslations', () => {
     it('updates lemma prefix for valid translations', async () => {
         const suggestedIds = [lemmas.casa._id];
 
-        const getUserSuggestions = jest.fn().mockImplementation(params =>
-            Promise.resolve(
-                isItPlLevel1(params)
-                    ? { median_freq: 0, suggested_lemmas_ids: suggestedIds }
-                    : emptyFastAPIResponse,
-            ),
-        );
+        const getUserSuggestions = jest
+            .fn()
+            .mockImplementation(params =>
+                Promise.resolve(
+                    isItPlLevel1(params)
+                        ? { median_freq: 0, suggested_lemmas_ids: suggestedIds }
+                        : emptyFastAPIResponse,
+                ),
+            );
 
         const insertedTranslations: Array<{ lemmaId: unknown; translation: string | null }> = [];
         (LemmaTranslation.find as jest.Mock).mockImplementation(() => ({
@@ -296,7 +299,7 @@ describe('populateLemmaTranslations', () => {
                 return Promise.resolve([]);
             },
         );
-        (getLemmasIdsToTranslate as jest.Mock).mockResolvedValue([lemmas.casa._id]);
+        (getLemmasToTranslate as jest.Mock).mockResolvedValue([lemmas.casa]);
         (Lemma.find as jest.Mock).mockImplementation(() => ({
             lean: jest.fn().mockResolvedValue([lemmas.casa]),
         }));
@@ -338,5 +341,4 @@ describe('populateLemmaTranslations', () => {
             expect(entry.batches).toBe(0);
         }
     });
-
 });

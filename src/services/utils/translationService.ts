@@ -1,33 +1,33 @@
+import Lemma from '../../models/lemmas/Lemma';
 import LemmaTranslation from '../../models/lemmas/LemmaTranslation';
 import { SuggestionAttr } from '../../types/models/SuggestionAttr';
+
+const delta = (prev: boolean | undefined, next: boolean) =>
+    Number(!prev && next) - Number(!!prev && !next);
 
 export const updateLemmaTranslationCounts = async (
     existingSuggestion: SuggestionAttr,
     suggestion: SuggestionAttr,
 ) => {
-    const existingTranslation = await LemmaTranslation.findOne({
-        lemmaId: existingSuggestion.lemmaId,
-        translationLang: existingSuggestion.translationLang,
-    });
+    const addCountDelta = delta(existingSuggestion.added, suggestion.added);
+    const skipCountDelta = delta(existingSuggestion.skipped, suggestion.skipped);
 
-    if (!existingTranslation) return;
+    if (addCountDelta === 0 && skipCountDelta === 0) return;
 
-    const updateCount = (
-        prev: boolean | undefined,
-        next: boolean,
-        field: 'addCount' | 'skipCount',
-    ) => {
-        if (!prev && next) existingTranslation[field] = (existingTranslation[field] ?? 0) + 1;
-        if (prev && !next) existingTranslation[field] = (existingTranslation[field] ?? 0) - 1;
-    };
-
-    updateCount(existingSuggestion.added, suggestion.added, 'addCount');
-    updateCount(existingSuggestion.skipped, suggestion.skipped, 'skipCount');
-
-    // Legacy documents may not have mainLang yet; set it before save to satisfy schema validation.
-    if (!existingTranslation.mainLang) {
-        existingTranslation.mainLang = existingSuggestion.mainLang;
-    }
-
-    await existingTranslation.save();
+    await Promise.all([
+        LemmaTranslation.updateOne(
+            {
+                lemmaId: existingSuggestion.lemmaId,
+                translationLang: existingSuggestion.translationLang,
+            },
+            {
+                $inc: { addCount: addCountDelta, skipCount: skipCountDelta },
+                $set: { mainLang: existingSuggestion.mainLang },
+            },
+        ),
+        Lemma.updateOne(
+            { _id: existingSuggestion.lemmaId },
+            { $inc: { addCount: addCountDelta, skipCount: skipCountDelta } },
+        ),
+    ]);
 };

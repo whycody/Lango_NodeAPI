@@ -15,9 +15,9 @@ export async function getMedianFreq(
     if (total === 0) return 0.5;
     const skip = getPercentileSkip(level, total);
     const [doc] = await Lemma.find({ lang: mainLang })
-        .sort({ freq_z: 1 })
+        .sort({ freqZ: 1 })
         .skip(skip)
         .limit(1)
         .lean();
-    return doc?.freq_z ?? 0.5;
+    return doc?.freqZ ?? 0.5;
 }

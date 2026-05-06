@@ -1,60 +1,45 @@
-import { Types } from 'mongoose';
-
 import { LanguageCodeValue } from '../../../constants/languageCodes';
 import { SUGGESTIONS_TO_INSERT, SUGGESTIONS_TO_TRANSLATE } from '../../../constants/suggestions';
 import Lemma from '../../../models/lemmas/Lemma';
-import LemmaTranslation from '../../../models/lemmas/LemmaTranslation';
+import { LemmaAttrWithId } from '../../../types/models/LemmaAttr';
 
-export async function getLemmasIdsToTranslate(
-    lemmaIds: string[],
+export async function getLemmasToTranslate(
+    suggestedLemmas: LemmaAttrWithId[],
     mainLang: LanguageCodeValue,
     translationLang: LanguageCodeValue,
     medianFreq: number,
     limit: number = SUGGESTIONS_TO_TRANSLATE,
-): Promise<string[]> {
-    const lemmaObjectIds = lemmaIds.map(id => new Types.ObjectId(id));
+): Promise<LemmaAttrWithId[]> {
+    const validCount = suggestedLemmas.filter(l =>
+        l.validTranslationsLanguages.includes(translationLang),
+    ).length;
 
-    const lemmaTranslations = await LemmaTranslation.find({
-        lemmaId: { $in: lemmaObjectIds },
-        translationLang,
-    }).lean();
+    if (validCount >= SUGGESTIONS_TO_INSERT) return [];
 
-    const alreadyTranslatedLemmaIds = new Set(lemmaTranslations.map(doc => doc.lemmaId.toString()));
+    const untranslated = suggestedLemmas.filter(
+        l =>
+            !l.validTranslationsLanguages.includes(translationLang) &&
+            !l.invalidTranslationsLanguages.includes(translationLang),
+    );
 
-    const validLemmaTranslationsCount = lemmaTranslations.filter(t => !!t.translation).length;
-    const untranslatedLemmaIds = lemmaIds.filter(id => !alreadyTranslatedLemmaIds.has(id));
+    if (untranslated.length >= limit) return untranslated.slice(0, limit);
 
-    if (validLemmaTranslationsCount >= SUGGESTIONS_TO_INSERT) return [];
-    if (untranslatedLemmaIds.length >= limit) return untranslatedLemmaIds.slice(0, limit);
+    const additionalNeeded = limit - untranslated.length;
+    const suggestedIds = suggestedLemmas.map(l => l._id);
 
-    const additionalTranslationsNeeded = Math.max(limit - untranslatedLemmaIds.length, 0);
-    let lemmasIdsToTranslate: string[] = [];
-
-    if (additionalTranslationsNeeded > 0) {
-        const alreadyTranslatedLemmaIds = await LemmaTranslation.distinct('lemmaId', {
-            translationLang,
-        });
-
-        const additionalCandidates = await Lemma.aggregate([
-            {
-                $match: {
-                    _id: { $nin: [...alreadyTranslatedLemmaIds, ...lemmaObjectIds] },
-                    lang: mainLang,
-                },
+    const additionalCandidates = await Lemma.aggregate<LemmaAttrWithId>([
+        {
+            $match: {
+                _id: { $nin: suggestedIds },
+                invalidTranslationsLanguages: { $ne: translationLang },
+                lang: mainLang,
+                validTranslationsLanguages: { $ne: translationLang },
             },
-            {
-                $addFields: {
-                    freqDistance: {
-                        $abs: { $subtract: [{ $ifNull: ['$freq_z', 0] }, medianFreq] },
-                    },
-                },
-            },
-            { $sort: { freqDistance: 1 } },
-            { $limit: additionalTranslationsNeeded },
-        ]);
+        },
+        { $addFields: { freqDistance: { $abs: { $subtract: ['$freqZ', medianFreq] } } } },
+        { $sort: { freqDistance: 1 } },
+        { $limit: additionalNeeded },
+    ]);
 
-        lemmasIdsToTranslate = additionalCandidates.map(l => l._id.toString());
-    }
-
-    return [...untranslatedLemmaIds, ...lemmasIdsToTranslate];
+    return [...untranslated, ...additionalCandidates];
 }

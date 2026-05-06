@@ -24,6 +24,7 @@ export const buildTranslatingWordsPrompt = (
         'Do not include the source word in translations if real translations exist',
         'Mark isValid=false for: invalid words, proper names, overly technical terms, or identical non-borrowed words',
         'Max 1 example per word: a short, natural sentence showing how the word is used in context; no explanations unless invalid',
+        `Example source sentence must be in ${mainLang.languageName} and target sentence in ${translationLang.languageName}`,
     ];
 
     base += rules.join(', \n- ') + '. ';

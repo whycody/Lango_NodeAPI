@@ -1,34 +1,38 @@
+import { Types } from 'mongoose';
+
 import { LanguageCodeValue } from '../../constants/languageCodes';
-import { LANGUAGE_LEVELS, LanguageLevelValue } from '../../constants/languageLevels';
+import { SUGGESTIONS_TO_INSERT } from '../../constants/suggestions';
+import Suggestion from '../../models/core/Suggestion';
+import User from '../../models/core/User';
 import Lemma from '../../models/lemmas/Lemma';
+import { SuggestionAttr } from '../../types/models/SuggestionAttr';
 import { getMedianFreq } from '../../utils/median';
+import { createSuggestion } from './utils/fabrics/createSuggestion';
 
-export { getMedianFreq };
-
-export type ExampleFlashcard = {
-    id: string;
-    word: string;
-    translation: string;
-};
-
-export function isLanguageLevelValue(value: any): value is LanguageLevelValue {
-    return (LANGUAGE_LEVELS as readonly number[]).includes(Number(value));
-}
-
-export async function getExampleFlashcards(
+export async function insertInitialSuggestions(
+    userId: string,
     mainLang: LanguageCodeValue,
     translationLang: LanguageCodeValue,
-    level: LanguageLevelValue,
-    count: number,
-): Promise<ExampleFlashcard[]> {
+    excludedLemmaIds: Types.ObjectId[],
+): Promise<void> {
+    const user = await User.findOne({ _id: userId });
+    const level = user?.languageLevels.find(l => l.language === mainLang)?.level ?? 1;
     const medianFreq = await getMedianFreq(mainLang, level);
 
     const results = await Lemma.aggregate<{
         _id: string;
-        word: string;
+        example: { source: string; target: string } | null;
+        lemma: string;
         translation: string;
+        word: string;
     }>([
-        { $match: { lang: mainLang, validTranslationsLanguages: translationLang } },
+        {
+            $match: {
+                _id: { $nin: excludedLemmaIds },
+                lang: mainLang,
+                validTranslationsLanguages: translationLang,
+            },
+        },
         { $addFields: { freqDiff: { $abs: { $subtract: ['$freqZ', medianFreq] } } } },
         { $sort: { freqDiff: 1 } },
         { $setWindowFields: { output: { pos: { $documentNumber: {} } }, sortBy: { freqDiff: 1 } } },
@@ -43,8 +47,9 @@ export async function getExampleFlashcards(
                 },
             },
         },
+
         { $sort: { points: -1 } },
-        { $limit: count },
+        { $limit: SUGGESTIONS_TO_INSERT },
         {
             $lookup: {
                 as: 'lt',
@@ -63,7 +68,8 @@ export async function getExampleFlashcards(
                             },
                         },
                     },
-                    { $project: { _id: 1, translation: 1 } },
+                    { $project: { _id: 0, example: 1, translation: 1 } },
+                    { $limit: 1 },
                 ],
             },
         },
@@ -71,6 +77,8 @@ export async function getExampleFlashcards(
         {
             $project: {
                 _id: 1,
+                example: '$lt.example',
+                lemma: 1,
                 translation: '$lt.translation',
                 word: {
                     $cond: {
@@ -83,9 +91,22 @@ export async function getExampleFlashcards(
         },
     ]);
 
-    return results.map(r => ({
-        id: (r._id as { toString(): string }).toString(),
-        translation: r.translation,
-        word: r.word,
-    }));
+    if (results.length === 0) return;
+
+    const suggestions: SuggestionAttr[] = results.map(r =>
+        createSuggestion({
+            example: r.example ?? null,
+            lemma: r.lemma,
+            lemmaId: r._id,
+            mainLang,
+            translation: r.translation,
+            translationLang,
+            userId,
+            word: r.word,
+        }),
+    );
+
+    await Suggestion.insertMany(suggestions, { ordered: false }).catch((err: any) => {
+        if (err?.code !== 11000 && err?.cause?.code !== 11000) throw err;
+    });
 }

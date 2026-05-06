@@ -9,7 +9,11 @@ export type LemmaAttr = {
     lang: LanguageCodeValue;
     prefix: string;
     freq: number;
-    freq_z: number;
+    freqZ: number;
+    skipCount: number;
+    addCount: number;
+    validTranslationsLanguages: LanguageCodeValue[];
+    invalidTranslationsLanguages: LanguageCodeValue[];
 };
 
 export type LemmaAttrWithId = LemmaAttr & { _id: Types.ObjectId | string };
