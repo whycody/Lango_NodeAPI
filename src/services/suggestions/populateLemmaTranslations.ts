@@ -10,7 +10,7 @@ import { LemmaUpdate } from '../../types/shared/LemmaUpdate';
 import { FastAPISuggestionsRepository } from './repositories/FastAPISuggestionRepository';
 import { translateWords } from './translateWords';
 import { createLemmaTranslation } from './utils/fabrics/createLemmaTranslation';
-import { getLemmasIdsToTranslate } from './utils/getLemmasToTranslate';
+import { getLemmasToTranslate } from './utils/getLemmasToTranslate';
 import { mapArrayToLemmaTranslations } from './utils/mapToLemmaTranslation';
 import { markUnknownTranslations } from './utils/markUnknownTranslations';
 import { matchTranslationsToLemmas } from './utils/matchTranslationsToLemmas';
@@ -85,7 +85,7 @@ async function populateForPairAndLevel(
 
         if (validInPool >= suggestedIds.length) break;
 
-        const toTranslate = await getLemmasIdsToTranslate(
+        const toTranslate = await getLemmasToTranslate(
             suggestedLemmas,
             mainLang,
             translationLang,
@@ -135,6 +135,8 @@ async function populateForPairAndLevel(
 
         await LemmaTranslation.insertMany(mapArrayToLemmaTranslations(translationsToInsert), {
             ordered: false,
+        }).catch((err: any) => {
+            if (err?.code !== 11000 && err?.cause?.code !== 11000) throw err;
         });
 
         const validLemmaIds = translationsToInsert

@@ -106,5 +106,7 @@ export async function insertInitialSuggestions(
         }),
     );
 
-    await Suggestion.insertMany(suggestions, { ordered: false });
+    await Suggestion.insertMany(suggestions, { ordered: false }).catch((err: any) => {
+        if (err?.code !== 11000 && err?.cause?.code !== 11000) throw err;
+    });
 }

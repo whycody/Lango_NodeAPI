@@ -14,7 +14,7 @@ import { FastAPISuggestionsRepository } from './repositories/FastAPISuggestionRe
 import { translateWords } from './translateWords';
 import { createLemmaTranslation } from './utils/fabrics/createLemmaTranslation';
 import { createSuggestion } from './utils/fabrics/createSuggestion';
-import { getLemmasIdsToTranslate } from './utils/getLemmasToTranslate';
+import { getLemmasToTranslate } from './utils/getLemmasToTranslate';
 import { mapArrayToLemmaTranslations } from './utils/mapToLemmaTranslation';
 import { markUnknownTranslations } from './utils/markUnknownTranslations';
 import { matchTranslationsToLemmas } from './utils/matchTranslationsToLemmas';
@@ -55,7 +55,7 @@ export const generateSuggestionsInBackground = async (
             }).lean(),
         ]);
 
-        const lemmasToTranslate = await getLemmasIdsToTranslate(
+        const lemmasToTranslate = await getLemmasToTranslate(
             suggestedLemmas,
             mainLang,
             translationLang,
@@ -152,6 +152,8 @@ export const generateSuggestionsInBackground = async (
             translationsToInsert.length > 0
                 ? LemmaTranslation.insertMany(mapArrayToLemmaTranslations(translationsToInsert), {
                       ordered: false,
+                  }).catch((err: any) => {
+                      if (err?.code !== 11000 && err?.cause?.code !== 11000) throw err;
                   })
                 : Promise.resolve(),
             suggestionsToInsert.length > 0

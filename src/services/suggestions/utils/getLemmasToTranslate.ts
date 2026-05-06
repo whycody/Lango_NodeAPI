@@ -3,7 +3,7 @@ import { SUGGESTIONS_TO_INSERT, SUGGESTIONS_TO_TRANSLATE } from '../../../consta
 import Lemma from '../../../models/lemmas/Lemma';
 import { LemmaAttrWithId } from '../../../types/models/LemmaAttr';
 
-export async function getLemmasIdsToTranslate(
+export async function getLemmasToTranslate(
     suggestedLemmas: LemmaAttrWithId[],
     mainLang: LanguageCodeValue,
     translationLang: LanguageCodeValue,

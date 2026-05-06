@@ -2,7 +2,7 @@ import Lemma from '../../../../models/lemmas/Lemma';
 import { SUGGESTIONS_TO_INSERT } from '../../../../constants/suggestions';
 import { LanguageCodeValue } from '../../../../constants/languageCodes';
 import { LemmaAttrWithId } from '../../../../types/models/LemmaAttr';
-import { getLemmasIdsToTranslate } from '../getLemmasToTranslate';
+import { getLemmasToTranslate } from '../getLemmasToTranslate';
 
 jest.mock('../../../../models/lemmas/Lemma');
 
@@ -26,7 +26,7 @@ const makeLemma = (
     validTranslationsLanguages: opts.validTranslationsLanguages ?? [],
 });
 
-describe('getLemmasIdsToTranslate', () => {
+describe('getLemmasToTranslate', () => {
     const mainLang: LanguageCodeValue = 'it';
     const translationLang: LanguageCodeValue = 'pl';
     const medianFreq = 50;
@@ -39,7 +39,7 @@ describe('getLemmasIdsToTranslate', () => {
     it('returns all lemmas as untranslated when none have translations', async () => {
         const lemmas = [makeLemma('1'), makeLemma('2')];
 
-        const result = await getLemmasIdsToTranslate(
+        const result = await getLemmasToTranslate(
             lemmas,
             mainLang,
             translationLang,
@@ -56,7 +56,7 @@ describe('getLemmasIdsToTranslate', () => {
             makeLemma(`${i}`, { validTranslationsLanguages: [translationLang] }),
         );
 
-        const result = await getLemmasIdsToTranslate(
+        const result = await getLemmasToTranslate(
             lemmas,
             mainLang,
             translationLang,
@@ -76,7 +76,7 @@ describe('getLemmasIdsToTranslate', () => {
         const additionalLemma = makeLemma('extra');
         (Lemma.aggregate as jest.Mock).mockResolvedValue([additionalLemma]);
 
-        const result = await getLemmasIdsToTranslate(
+        const result = await getLemmasToTranslate(
             lemmas,
             mainLang,
             translationLang,
@@ -92,7 +92,7 @@ describe('getLemmasIdsToTranslate', () => {
     it('never returns more lemmas than the given limit', async () => {
         const lemmas = Array.from({ length: 5 }, (_, i) => makeLemma(`${i}`));
 
-        const result = await getLemmasIdsToTranslate(
+        const result = await getLemmasToTranslate(
             lemmas,
             mainLang,
             translationLang,
@@ -107,7 +107,7 @@ describe('getLemmasIdsToTranslate', () => {
     it('excludes suggested lemma ids from additional candidate query', async () => {
         const lemmas = [makeLemma('1', { validTranslationsLanguages: [translationLang] })];
 
-        await getLemmasIdsToTranslate(lemmas, mainLang, translationLang, medianFreq, 2);
+        await getLemmasToTranslate(lemmas, mainLang, translationLang, medianFreq, 2);
 
         type MatchStage = { $match: { _id: { $nin: Array<{ toString(): string }> } } };
         const pipeline = (Lemma.aggregate as jest.Mock).mock.calls[0][0] as MatchStage[];
@@ -124,7 +124,7 @@ describe('getLemmasIdsToTranslate', () => {
             makeLemma('2'),
         ];
 
-        const result = await getLemmasIdsToTranslate(
+        const result = await getLemmasToTranslate(
             lemmas,
             mainLang,
             translationLang,
@@ -139,7 +139,7 @@ describe('getLemmasIdsToTranslate', () => {
     it('caps untranslated lemmas to the given limit', async () => {
         const lemmas = Array.from({ length: 5 }, (_, i) => makeLemma(`${i}`));
 
-        const result = await getLemmasIdsToTranslate(
+        const result = await getLemmasToTranslate(
             lemmas,
             mainLang,
             translationLang,
