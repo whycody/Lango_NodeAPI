@@ -85,13 +85,8 @@ describe('generateSuggestionsInBackground', () => {
             median_freq: 50,
         });
 
-        (Lemma.find as jest.Mock).mockImplementation(query => {
-            if (query._id.$in === suggestedLemmasIds) {
-                return {
-                    lean: jest.fn().mockResolvedValue([lemmas.casa, lemmas.gatto]),
-                };
-            }
-            return { lean: jest.fn().mockResolvedValue([]) };
+        (Lemma.find as jest.Mock).mockReturnValue({
+            lean: jest.fn().mockResolvedValue([lemmas.casa, lemmas.gatto]),
         });
 
         (getLemmasIdsToTranslate as jest.Mock).mockResolvedValue([]);
@@ -138,20 +133,11 @@ describe('generateSuggestionsInBackground', () => {
             median_freq: 50,
         });
 
-        (Lemma.find as jest.Mock).mockImplementation(query => {
-            const ids = query._id.$in;
-            if (ids === suggestedLemmasIds) {
-                return {
-                    lean: jest.fn().mockResolvedValue([lemmas.casa, lemmas.cane]),
-                };
-            }
-            if (ids.includes(lemmas.cane._id)) {
-                return { lean: jest.fn().mockResolvedValue([lemmas.cane]) };
-            }
-            return { lean: jest.fn().mockResolvedValue([]) };
+        (Lemma.find as jest.Mock).mockReturnValue({
+            lean: jest.fn().mockResolvedValue([lemmas.casa, lemmas.cane]),
         });
 
-        (getLemmasIdsToTranslate as jest.Mock).mockResolvedValue([lemmas.cane._id]);
+        (getLemmasIdsToTranslate as jest.Mock).mockResolvedValue([lemmas.cane]);
 
         (LemmaTranslation.find as jest.Mock).mockReturnValue({
             lean: jest.fn().mockResolvedValue([
@@ -207,15 +193,11 @@ describe('generateSuggestionsInBackground', () => {
             median_freq: 50,
         });
 
-        (Lemma.find as jest.Mock).mockImplementation(query => {
-            const ids = query._id.$in;
-            if (ids === suggestedLemmasIds || ids.includes(lemmas.gatto._id)) {
-                return { lean: jest.fn().mockResolvedValue([lemmas.gatto]) };
-            }
-            return { lean: jest.fn().mockResolvedValue([]) };
+        (Lemma.find as jest.Mock).mockReturnValue({
+            lean: jest.fn().mockResolvedValue([lemmas.gatto]),
         });
 
-        (getLemmasIdsToTranslate as jest.Mock).mockResolvedValue([lemmas.gatto._id]);
+        (getLemmasIdsToTranslate as jest.Mock).mockResolvedValue([lemmas.gatto]);
 
         (LemmaTranslation.find as jest.Mock).mockReturnValue({
             lean: jest.fn().mockResolvedValue([]),
@@ -269,12 +251,8 @@ describe('generateSuggestionsInBackground', () => {
             median_freq: 50,
         });
 
-        (Lemma.find as jest.Mock).mockImplementation(query => {
-            const ids = query._id.$in;
-            if (ids.length === 0) {
-                return { lean: jest.fn().mockResolvedValue([]) };
-            }
-            return { lean: jest.fn().mockResolvedValue([lemmas.casa]) };
+        (Lemma.find as jest.Mock).mockReturnValue({
+            lean: jest.fn().mockResolvedValue([lemmas.casa]),
         });
 
         (getLemmasIdsToTranslate as jest.Mock).mockResolvedValue([]);

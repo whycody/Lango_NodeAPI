@@ -4,30 +4,28 @@ import Suggestion from '../../../models/core/Suggestion';
 import Word from '../../../models/core/Word';
 import Lemma from '../../../models/lemmas/Lemma';
 import LemmaTranslation from '../../../models/lemmas/LemmaTranslation';
-import { generateSuggestionsInBackground } from '../generateSuggestions';
+import { insertInitialSuggestions } from '../insertInitialSuggestions';
 import { processOnboardingFlashcards } from '../processOnboardingFlashcards';
 
 jest.mock('../../../models/lemmas/LemmaTranslation');
 jest.mock('../../../models/lemmas/Lemma');
 jest.mock('../../../models/core/Suggestion');
 jest.mock('../../../models/core/Word');
-jest.mock('../generateSuggestions');
+jest.mock('../insertInitialSuggestions');
 jest.mock('uuid', () => ({ v4: () => 'mock-uuid' }));
 
-const ltIdSelected = new Types.ObjectId();
-const ltIdSkipped = new Types.ObjectId();
 const lemmaIdSelected = new Types.ObjectId();
 const lemmaIdSkipped = new Types.ObjectId();
 
 const mockLemmaTranslations = [
     {
-        _id: ltIdSelected,
+        _id: new Types.ObjectId(),
         lemmaId: lemmaIdSelected,
         translation: 'dom',
         example: { source: 'La casa è grande.', target: 'Dom jest duży.' },
     },
     {
-        _id: ltIdSkipped,
+        _id: new Types.ObjectId(),
         lemmaId: lemmaIdSkipped,
         translation: 'kot',
         example: null,
@@ -46,10 +44,11 @@ describe('processOnboardingFlashcards', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
-        (generateSuggestionsInBackground as jest.Mock).mockResolvedValue(undefined);
+        (insertInitialSuggestions as jest.Mock).mockResolvedValue(undefined);
         (Suggestion.insertMany as jest.Mock).mockResolvedValue([]);
         (Word.insertMany as jest.Mock).mockResolvedValue([]);
         (LemmaTranslation.updateMany as jest.Mock).mockResolvedValue({});
+        (Lemma.updateMany as jest.Mock).mockResolvedValue({});
         (LemmaTranslation.find as jest.Mock).mockReturnValue({
             lean: jest.fn().mockResolvedValue([]),
         });
@@ -73,7 +72,7 @@ describe('processOnboardingFlashcards', () => {
                 userId,
                 mainLang,
                 translationLang,
-                [ltIdSelected.toString()],
+                [lemmaIdSelected.toString()],
                 [],
             );
 
@@ -91,7 +90,7 @@ describe('processOnboardingFlashcards', () => {
                 mainLang,
                 translationLang,
                 [],
-                [ltIdSkipped.toString()],
+                [lemmaIdSkipped.toString()],
             );
 
             const inserted = (Suggestion.insertMany as jest.Mock).mock.calls[0][0];
@@ -107,7 +106,7 @@ describe('processOnboardingFlashcards', () => {
                 userId,
                 mainLang,
                 translationLang,
-                [ltIdSelected.toString()],
+                [lemmaIdSelected.toString()],
                 [],
             );
 
@@ -125,16 +124,14 @@ describe('processOnboardingFlashcards', () => {
 
         it('skips flashcards with null translation', async () => {
             (LemmaTranslation.find as jest.Mock).mockReturnValue({
-                lean: jest
-                    .fn()
-                    .mockResolvedValue([{ ...mockLemmaTranslations[0], translation: null }]),
+                lean: jest.fn().mockResolvedValue([{ ...mockLemmaTranslations[0], translation: null }]),
             });
 
             await processOnboardingFlashcards(
                 userId,
                 mainLang,
                 translationLang,
-                [ltIdSelected.toString()],
+                [lemmaIdSelected.toString()],
                 [],
             );
 
@@ -157,8 +154,8 @@ describe('processOnboardingFlashcards', () => {
                 userId,
                 mainLang,
                 translationLang,
-                [ltIdSelected.toString()],
-                [ltIdSkipped.toString()],
+                [lemmaIdSelected.toString()],
+                [lemmaIdSkipped.toString()],
             );
 
             const insertedWords = (Word.insertMany as jest.Mock).mock.calls[0][0];
@@ -171,7 +168,7 @@ describe('processOnboardingFlashcards', () => {
                 userId,
                 mainLang,
                 translationLang,
-                [ltIdSelected.toString()],
+                [lemmaIdSelected.toString()],
                 [],
             );
 
@@ -200,7 +197,7 @@ describe('processOnboardingFlashcards', () => {
                 userId,
                 mainLang,
                 translationLang,
-                [ltIdSkipped.toString()],
+                [lemmaIdSkipped.toString()],
                 [],
             );
 
@@ -218,7 +215,7 @@ describe('processOnboardingFlashcards', () => {
                 mainLang,
                 translationLang,
                 [],
-                [ltIdSkipped.toString()],
+                [lemmaIdSkipped.toString()],
             );
 
             expect(Word.insertMany).not.toHaveBeenCalled();
@@ -235,32 +232,32 @@ describe('processOnboardingFlashcards', () => {
             });
         });
 
-        it('increments addCount for selected IDs', async () => {
+        it('increments addCount for selected lemmaIds', async () => {
             await processOnboardingFlashcards(
                 userId,
                 mainLang,
                 translationLang,
-                [ltIdSelected.toString()],
+                [lemmaIdSelected.toString()],
                 [],
             );
 
             expect(LemmaTranslation.updateMany).toHaveBeenCalledWith(
-                expect.objectContaining({ _id: { $in: expect.any(Array) } }),
+                expect.objectContaining({ lemmaId: { $in: expect.any(Array) } }),
                 { $inc: { addCount: 1 } },
             );
         });
 
-        it('increments skipCount for skipped IDs', async () => {
+        it('increments skipCount for skipped lemmaIds', async () => {
             await processOnboardingFlashcards(
                 userId,
                 mainLang,
                 translationLang,
                 [],
-                [ltIdSkipped.toString()],
+                [lemmaIdSkipped.toString()],
             );
 
             expect(LemmaTranslation.updateMany).toHaveBeenCalledWith(
-                expect.objectContaining({ _id: { $in: expect.any(Array) } }),
+                expect.objectContaining({ lemmaId: { $in: expect.any(Array) } }),
                 { $inc: { skipCount: 1 } },
             );
         });
@@ -275,7 +272,7 @@ describe('processOnboardingFlashcards', () => {
                 mainLang,
                 translationLang,
                 [],
-                [ltIdSkipped.toString()],
+                [lemmaIdSkipped.toString()],
             );
 
             const calls = (LemmaTranslation.updateMany as jest.Mock).mock.calls;
@@ -292,7 +289,7 @@ describe('processOnboardingFlashcards', () => {
                 userId,
                 mainLang,
                 translationLang,
-                [ltIdSelected.toString()],
+                [lemmaIdSelected.toString()],
                 [],
             );
 
@@ -302,8 +299,8 @@ describe('processOnboardingFlashcards', () => {
         });
     });
 
-    describe('background suggestions', () => {
-        it('calls generateSuggestionsInBackground after processing flashcards', async () => {
+    describe('insertInitialSuggestions', () => {
+        it('is called with excluded lemma ids after processing flashcards', async () => {
             (LemmaTranslation.find as jest.Mock).mockReturnValue({
                 lean: jest.fn().mockResolvedValue(mockLemmaTranslations),
             });
@@ -315,26 +312,26 @@ describe('processOnboardingFlashcards', () => {
                 userId,
                 mainLang,
                 translationLang,
-                [ltIdSelected.toString()],
+                [lemmaIdSelected.toString()],
                 [],
             );
 
-            expect(generateSuggestionsInBackground).toHaveBeenCalledWith(
+            expect(insertInitialSuggestions).toHaveBeenCalledWith(
                 userId,
                 mainLang,
                 translationLang,
-                true,
+                expect.any(Array),
             );
         });
 
-        it('calls generateSuggestionsInBackground even when all lists are empty', async () => {
+        it('is called with empty array when all lists are empty', async () => {
             await processOnboardingFlashcards(userId, mainLang, translationLang, [], []);
 
-            expect(generateSuggestionsInBackground).toHaveBeenCalledWith(
+            expect(insertInitialSuggestions).toHaveBeenCalledWith(
                 userId,
                 mainLang,
                 translationLang,
-                true,
+                [],
             );
         });
     });

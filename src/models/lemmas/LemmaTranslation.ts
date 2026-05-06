@@ -39,7 +39,6 @@ const lemmaTranslationSchema = new Schema<LemmaTranslation>(
 );
 
 lemmaTranslationSchema.index({ lemmaId: 1, translationLang: 1 }, { unique: true });
-lemmaTranslationSchema.index({ isValid: 1, mainLang: 1, translationLang: 1 });
 
 export default model<LemmaTranslation>(
     'LemmaTranslation',

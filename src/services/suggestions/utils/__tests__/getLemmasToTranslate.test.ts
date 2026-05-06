@@ -1,145 +1,152 @@
-import { Types } from 'mongoose';
-import LemmaTranslation from '../../../../models/lemmas/LemmaTranslation';
 import Lemma from '../../../../models/lemmas/Lemma';
+import { SUGGESTIONS_TO_INSERT } from '../../../../constants/suggestions';
+import { LanguageCodeValue } from '../../../../constants/languageCodes';
+import { LemmaAttrWithId } from '../../../../types/models/LemmaAttr';
 import { getLemmasIdsToTranslate } from '../getLemmasToTranslate';
 
-jest.mock('../../../../models/lemmas/LemmaTranslation');
 jest.mock('../../../../models/lemmas/Lemma');
 
+const makeLemma = (
+    id: string,
+    opts: {
+        invalidTranslationsLanguages?: LanguageCodeValue[];
+        validTranslationsLanguages?: LanguageCodeValue[];
+    } = {},
+): LemmaAttrWithId => ({
+    _id: id,
+    addCount: 0,
+    freq: 1,
+    freqZ: 0,
+    invalidTranslationsLanguages: opts.invalidTranslationsLanguages ?? [],
+    lang: 'it',
+    lemma: 'word',
+    prefix: '',
+    skipCount: 0,
+    type: 'subst',
+    validTranslationsLanguages: opts.validTranslationsLanguages ?? [],
+});
+
 describe('getLemmasIdsToTranslate', () => {
-    const mainLang = 'it';
-    const translationLang = 'pl';
-    const lemmaIds = [new Types.ObjectId().toString(), new Types.ObjectId().toString()];
+    const mainLang: LanguageCodeValue = 'it';
+    const translationLang: LanguageCodeValue = 'pl';
     const medianFreq = 50;
 
     beforeEach(() => {
         jest.clearAllMocks();
+        (Lemma.aggregate as jest.Mock).mockResolvedValue([]);
     });
 
-    it('returns all lemmaIds as untranslated when no locales exist', async () => {
-        (LemmaTranslation.find as jest.Mock).mockReturnValue({
-            lean: jest.fn().mockResolvedValue([]),
-        });
-
-        (LemmaTranslation.distinct as jest.Mock).mockResolvedValue([]);
-        (Lemma.aggregate as jest.Mock).mockResolvedValue([]);
+    it('returns all lemmas as untranslated when none have translations', async () => {
+        const lemmas = [makeLemma('1'), makeLemma('2')];
 
         const result = await getLemmasIdsToTranslate(
-            lemmaIds,
+            lemmas,
             mainLang,
             translationLang,
             medianFreq,
             2,
         );
 
-        expect(result).toEqual(lemmaIds);
+        expect(result).toEqual(lemmas);
+        expect(Lemma.aggregate).not.toHaveBeenCalled();
     });
 
-    it('returns an empty array when the limit of translated lemmas is already reached', async () => {
-        const docs = lemmaIds.map(id => ({
-            lemmaId: new Types.ObjectId(id),
-            translation: 'something',
-        }));
-        (LemmaTranslation.find as jest.Mock).mockReturnValue({
-            lean: jest.fn().mockResolvedValue(docs),
-        });
+    it('returns empty array when valid translation count reaches SUGGESTIONS_TO_INSERT', async () => {
+        const lemmas = Array.from({ length: SUGGESTIONS_TO_INSERT }, (_, i) =>
+            makeLemma(`${i}`, { validTranslationsLanguages: [translationLang] }),
+        );
 
         const result = await getLemmasIdsToTranslate(
-            lemmaIds,
+            lemmas,
             mainLang,
             translationLang,
             medianFreq,
-            2,
+            5,
         );
 
         expect(result).toEqual([]);
+        expect(Lemma.aggregate).not.toHaveBeenCalled();
     });
 
-    it('selects additional candidate lemmas when untranslated lemmas are fewer than the limit', async () => {
-        (LemmaTranslation.find as jest.Mock).mockReturnValueOnce({
-            lean: jest.fn().mockResolvedValue([{ lemmaId: new Types.ObjectId(lemmaIds[0]) }]),
-        });
-
-        (LemmaTranslation.distinct as jest.Mock).mockResolvedValue([]);
-        (Lemma.aggregate as jest.Mock).mockResolvedValue([
-            { _id: new Types.ObjectId('507f1f77bcf86cd799439011'), freq_z: 1.2 },
-        ]);
+    it('fetches additional candidate lemmas when untranslated are fewer than the limit', async () => {
+        const lemmas = [
+            makeLemma('1', { validTranslationsLanguages: [translationLang] }),
+            makeLemma('2'),
+        ];
+        const additionalLemma = makeLemma('extra');
+        (Lemma.aggregate as jest.Mock).mockResolvedValue([additionalLemma]);
 
         const result = await getLemmasIdsToTranslate(
-            lemmaIds,
+            lemmas,
             mainLang,
             translationLang,
             medianFreq,
             2,
         );
 
-        expect(result).toContain(lemmaIds[1]);
-        expect(result.length).toBe(2);
+        expect(result).toContainEqual(expect.objectContaining({ _id: '2' }));
+        expect(result).toContainEqual(additionalLemma);
+        expect(result).toHaveLength(2);
     });
 
-    it('never returns more lemmaIds than the given limit', async () => {
-        (LemmaTranslation.find as jest.Mock).mockReturnValueOnce({
-            lean: jest.fn().mockResolvedValue([]),
-        });
-
-        (LemmaTranslation.distinct as jest.Mock).mockResolvedValue([]);
-        (Lemma.aggregate as jest.Mock).mockResolvedValue(
-            Array.from({ length: 10 }).map((_, i) => ({
-                _id: new Types.ObjectId(),
-                freq_z: i,
-            })),
-        );
+    it('never returns more lemmas than the given limit', async () => {
+        const lemmas = Array.from({ length: 5 }, (_, i) => makeLemma(`${i}`));
 
         const result = await getLemmasIdsToTranslate(
-            lemmaIds,
+            lemmas,
             mainLang,
             translationLang,
             medianFreq,
             2,
         );
 
-        expect(result.length).toBeLessThanOrEqual(2);
+        expect(result).toHaveLength(2);
+        expect(Lemma.aggregate).not.toHaveBeenCalled();
     });
 
-    it('excludes input pool lemma ids from top-up candidates', async () => {
-        (LemmaTranslation.find as jest.Mock).mockReturnValueOnce({
-            lean: jest.fn().mockResolvedValue([]),
-        });
+    it('excludes suggested lemma ids from additional candidate query', async () => {
+        const lemmas = [makeLemma('1', { validTranslationsLanguages: [translationLang] })];
 
-        const existingTranslatedId = new Types.ObjectId();
-        (LemmaTranslation.distinct as jest.Mock).mockResolvedValue([existingTranslatedId]);
-        (Lemma.aggregate as jest.Mock).mockResolvedValue([]);
+        await getLemmasIdsToTranslate(lemmas, mainLang, translationLang, medianFreq, 2);
 
-        await getLemmasIdsToTranslate(lemmaIds, mainLang, translationLang, medianFreq, 5);
-
-        type MatchStage = { $match: { _id: { $nin: Types.ObjectId[] } } };
+        type MatchStage = { $match: { _id: { $nin: Array<{ toString(): string }> } } };
         const pipeline = (Lemma.aggregate as jest.Mock).mock.calls[0][0] as MatchStage[];
-
         const matchStage = pipeline.find(stage => stage.$match !== undefined);
         if (!matchStage) throw new Error('expected a $match stage in the pipeline');
 
-        const ninIdStrings = matchStage.$match._id.$nin.map(id => id.toString());
-        expect(ninIdStrings).toContain(existingTranslatedId.toString());
-        for (const poolId of lemmaIds) {
-            expect(ninIdStrings).toContain(poolId);
-        }
+        const ninIds = matchStage.$match._id.$nin.map(id => id.toString());
+        expect(ninIds).toContain('1');
     });
 
-    it('caps untranslated lemmaIds to the given limit', async () => {
-        const manyLemmaIds = Array.from({ length: 5 }).map(() => new Types.ObjectId().toString());
-
-        (LemmaTranslation.find as jest.Mock).mockReturnValueOnce({
-            lean: jest.fn().mockResolvedValue([]),
-        });
+    it('excludes lemmas with invalid translations from the untranslated list', async () => {
+        const lemmas = [
+            makeLemma('1', { invalidTranslationsLanguages: [translationLang] }),
+            makeLemma('2'),
+        ];
 
         const result = await getLemmasIdsToTranslate(
-            manyLemmaIds,
+            lemmas,
+            mainLang,
+            translationLang,
+            medianFreq,
+            5,
+        );
+
+        expect(result).not.toContainEqual(expect.objectContaining({ _id: '1' }));
+        expect(result).toContainEqual(expect.objectContaining({ _id: '2' }));
+    });
+
+    it('caps untranslated lemmas to the given limit', async () => {
+        const lemmas = Array.from({ length: 5 }, (_, i) => makeLemma(`${i}`));
+
+        const result = await getLemmasIdsToTranslate(
+            lemmas,
             mainLang,
             translationLang,
             medianFreq,
             2,
         );
 
-        expect(result).toEqual(manyLemmaIds.slice(0, 2));
+        expect(result).toEqual(lemmas.slice(0, 2));
     });
 });
