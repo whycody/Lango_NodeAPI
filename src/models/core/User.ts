@@ -57,6 +57,7 @@ interface User extends Document {
     sessionModel: SessionModelValue;
     notifications: Notifications;
     refreshTokens: RefreshToken[];
+    finishedOnboarding: boolean;
     admin: boolean;
     generateAccessToken(): string;
     registerDeviceAndGenerateRefreshToken(deviceId: string): string;
@@ -84,6 +85,7 @@ const languageLevelSchema = new Schema(
 const userSchema = new Schema<User>({
     admin: { default: false, select: false, type: Boolean },
     email: { required: false, type: String, unique: true },
+    finishedOnboarding: { default: false, type: Boolean },
     languageLevels: {
         default: [],
         type: [languageLevelSchema],

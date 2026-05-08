@@ -1,4 +1,5 @@
 import express, { Request, Response } from 'express';
+import { finished } from 'stream';
 
 import authenticate from '../middleware/auth';
 import User from '../models/core/User';
@@ -23,6 +24,7 @@ router.get('/users', authenticate, async (req: Request, res: Response) => {
 
         res.json({
             email: user.email,
+            finishedOnboarding: user.finishedOnboarding,
             languageLevels: user.languageLevels,
             mainLang: user.mainLang,
             name: user.name,
@@ -102,6 +104,23 @@ router.patch('/suggestions-in-session', authenticate, async (req: Request, res: 
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Failed to update suggestions in session' });
+    }
+});
+
+router.patch('/finished-onboarding', authenticate, async (req: Request, res: Response) => {
+    const { finished } = req.body;
+    if (finished === undefined) return res.status(400).json({ message: 'finished is required' });
+
+    try {
+        const user = await User.findByIdAndUpdate(
+            req.userId,
+            { finishedOnboarding: finished },
+            { new: true, select: 'finishedOnboarding' },
+        );
+        res.json({ finished: user?.finishedOnboarding });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Failed to update onboarding finished status' });
     }
 });
 
