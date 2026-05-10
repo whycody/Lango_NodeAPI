@@ -1,6 +1,8 @@
+import Lemma from '../../../models/lemmas/Lemma';
 import LemmaTranslation from '../../../models/lemmas/LemmaTranslation';
 import { updateLemmaTranslationCounts } from '../translationService';
 
+jest.mock('../../../models/lemmas/Lemma');
 jest.mock('../../../models/lemmas/LemmaTranslation');
 
 describe('updateLemmaTranslationCounts', () => {
@@ -8,17 +10,9 @@ describe('updateLemmaTranslationCounts', () => {
         jest.clearAllMocks();
     });
 
-    it('fills missing mainLang for legacy LemmaTranslation before save', async () => {
-        const save = jest.fn().mockResolvedValue(undefined);
-
-        const legacyLemmaTranslation = {
-            addCount: 2,
-            skipCount: 1,
-            mainLang: undefined,
-            save,
-        };
-
-        (LemmaTranslation.findOne as jest.Mock).mockResolvedValue(legacyLemmaTranslation);
+    it('updates counts correctly', async () => {
+        (Lemma.updateOne as jest.Mock).mockResolvedValue(undefined);
+        (LemmaTranslation.updateOne as jest.Mock).mockResolvedValue(undefined);
 
         const existingSuggestion: any = {
             added: false,
@@ -35,9 +29,20 @@ describe('updateLemmaTranslationCounts', () => {
 
         await updateLemmaTranslationCounts(existingSuggestion, suggestion);
 
-        expect(legacyLemmaTranslation.mainLang).toBe('it');
-        expect(legacyLemmaTranslation.addCount).toBe(3);
-        expect(legacyLemmaTranslation.skipCount).toBe(2);
-        expect(save).toHaveBeenCalledTimes(1);
+        expect(LemmaTranslation.updateOne).toHaveBeenCalledWith(
+            {
+                lemmaId: 'lemma-1',
+                translationLang: 'en',
+            },
+            {
+                $inc: { addCount: 1, skipCount: 1 },
+                $set: { mainLang: 'it' },
+            },
+        );
+
+        expect(Lemma.updateOne).toHaveBeenCalledWith(
+            { _id: 'lemma-1' },
+            { $inc: { addCount: 1, skipCount: 1 } },
+        );
     });
 });

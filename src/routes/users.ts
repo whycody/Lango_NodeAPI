@@ -1,5 +1,4 @@
 import express, { Request, Response } from 'express';
-import { finished } from 'stream';
 
 import authenticate from '../middleware/auth';
 import User from '../models/core/User';
