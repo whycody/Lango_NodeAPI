@@ -33,6 +33,12 @@ const suggestionSchema = new Schema<Suggestion>(
             enum: Object.values(LanguageCode),
             required: true,
             type: String,
+            validate: {
+                message: 'translationLang must be different from mainLang',
+                validator(this: Suggestion, value: string) {
+                    return value !== this.mainLang;
+                },
+            },
         },
         updatedAt: { default: Date.now, type: Date },
         userId: { ref: 'User', required: true, type: Schema.Types.ObjectId },

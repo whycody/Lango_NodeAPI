@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 
+import appConfigRoutes from './routes/appConfig';
 import authRoutes from './routes/auth';
 import evaluationsRoutes from './routes/evaluations';
 import notificationsRoutes from './routes/notifications';
@@ -12,6 +13,7 @@ import wordRoutes from './routes/words';
 const app = express();
 app.use(express.json());
 
+app.use('/app-config', appConfigRoutes);
 app.use('/auth', authRoutes);
 app.use('/users', usersRoutes);
 app.use('/sessions', sessionsRoutes);
