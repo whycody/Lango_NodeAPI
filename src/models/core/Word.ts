@@ -1,10 +1,11 @@
-import { Document, model, Schema } from 'mongoose';
+import { Document, model, Schema, Types } from 'mongoose';
 
 import { LanguageCode, LanguageCodeValue } from '../../constants/languageCodes';
 
 interface Word extends Document {
     id: string;
     userId: string;
+    bundleId?: Types.ObjectId | null;
     text: string;
     translation: string;
     mainLang: LanguageCodeValue;
@@ -22,6 +23,7 @@ const wordSchema = new Schema<Word>(
         _id: { required: true, type: String },
         active: { default: true, type: Boolean },
         addDate: { default: Date.now, type: Date },
+        bundleId: { ref: 'WordsBundle', required: false, type: Schema.Types.ObjectId },
         lemmas: { default: null, required: false, select: false, type: [String] },
         mainLang: { enum: Object.values(LanguageCode), required: true, type: String },
         removed: { default: false, type: Boolean },

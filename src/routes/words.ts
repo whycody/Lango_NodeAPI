@@ -9,13 +9,17 @@ const router = Router();
 const nowUTC = () => new Date().toISOString();
 
 router.get('/words', authenticate, async (req: Request, res: Response) => {
-    const { since } = req.query;
+    const { bundleId, since } = req.query;
     const userId = req.userId ?? '';
 
-    const query: { userId: string; updatedAt?: { $gt: Date } } = { userId };
+    const query: { userId: string; updatedAt?: { $gt: Date }; bundleId?: string } = { userId };
 
     if (since) {
         query.updatedAt = { $gt: new Date(since as string) };
+    }
+
+    if (bundleId) {
+        query.bundleId = bundleId as string;
     }
 
     const words = await Word.find(query).lean();

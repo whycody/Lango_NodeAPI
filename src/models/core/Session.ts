@@ -7,6 +7,7 @@ import { SessionMode, SessionModeValue } from '../../constants/sessionModes';
 interface Session extends Document {
     id: string;
     userId: string;
+    bundleId?: string;
     date: Date;
     localDay: string;
     mode: SessionModeValue;
@@ -24,6 +25,7 @@ const sessionSchema = new Schema<Session>(
     {
         _id: { required: true, type: String },
         averageScore: { required: true, type: Number },
+        bundleId: { ref: 'WordsBundle', required: false, type: Schema.Types.ObjectId },
         date: { required: true, type: Date },
         finished: { default: true, type: Boolean },
         localDay: { required: true, type: String },

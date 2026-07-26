@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 
 import appConfigRoutes from './routes/appConfig';
 import authRoutes from './routes/auth';
+import bundleMembersRoutes from './routes/bundleMembers';
 import evaluationsRoutes from './routes/evaluations';
 import notificationsRoutes from './routes/notifications';
 import sessionsRoutes from './routes/sessions';
@@ -9,6 +10,7 @@ import suggestionsRoutes from './routes/suggestions';
 import translationsRoutes from './routes/translations';
 import usersRoutes from './routes/users';
 import wordRoutes from './routes/words';
+import wordsBundlesRoutes from './routes/wordsBundles';
 
 const app = express();
 app.use(express.json());
@@ -21,6 +23,8 @@ app.use('/evaluations', evaluationsRoutes);
 app.use('/suggestions', suggestionsRoutes);
 app.use('/translations', translationsRoutes);
 app.use('/api', wordRoutes);
+app.use('/words-bundles', wordsBundlesRoutes);
+app.use('/bundle-members', bundleMembersRoutes);
 app.use('/notifications', notificationsRoutes);
 
 app.get('/', (req: Request, res: Response) => {

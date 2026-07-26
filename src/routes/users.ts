@@ -42,6 +42,27 @@ router.get('/users', authenticate, async (req: Request, res: Response) => {
     }
 });
 
+router.get('/:id/summary', authenticate, async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    try {
+        const user = await User.findById(id).select('name picture');
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.json({
+            id: user._id,
+            name: user.name,
+            picture: user.picture,
+        });
+    } catch (err) {
+        console.error('Error fetching user summary', err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 router.put('/language-levels', authenticate, async (req: Request, res: Response) => {
     const userId = req.userId;
     const { languageLevels } = req.body;
