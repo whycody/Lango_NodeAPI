@@ -81,6 +81,7 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
     const clientMembers = req.body;
     const syncedMembers = [];
     const unauthorizedMembers = [];
+    const rejectedMemberIds = [];
 
     for (const member of clientMembers) {
         try {
@@ -98,6 +99,8 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
             if (!bundle) {
                 if (existingMember) {
                     unauthorizedMembers.push(existingMember.toObject());
+                } else {
+                    rejectedMemberIds.push(member.id);
                 }
                 continue;
             }
@@ -108,12 +111,14 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
             if (!isOwner && targetUserId !== userId) {
                 if (existingMember) {
                     unauthorizedMembers.push(existingMember.toObject());
+                } else {
+                    rejectedMemberIds.push(member.id);
                 }
                 continue;
             }
 
             if (existingMember) {
-                if (existingMember.role === 'owner') {
+                if (existingMember.role === 'owner' && targetUserId !== userId) {
                     unauthorizedMembers.push(existingMember.toObject());
                     continue;
                 }
@@ -133,7 +138,13 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
                     continue;
                 }
             } else {
-                if (bundle.visibility !== 'public' && !isOwner) {
+                const duplicateMember = await BundleMember.findOne({
+                    bundleId: bundle._id,
+                    userId: new Types.ObjectId(targetUserId),
+                });
+
+                if (duplicateMember) {
+                    rejectedMemberIds.push(member.id);
                     continue;
                 }
 
@@ -166,7 +177,11 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
         id: member._id,
     }));
 
-    res.json({ syncedMembers, unauthorizedMembers: mappedUnauthorizedMembers });
+    res.json({
+        rejectedMemberIds,
+        syncedMembers,
+        unauthorizedMembers: mappedUnauthorizedMembers,
+    });
 });
 
 export default router;

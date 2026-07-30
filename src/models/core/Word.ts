@@ -43,6 +43,8 @@ wordSchema.virtual('id').get(function (this: Word) {
     return this._id;
 });
 
-wordSchema.index({ userId: 1 });
+// eslint-disable-next-line perfectionist/sort-objects
+wordSchema.index({ userId: 1, updatedAt: 1 });
+wordSchema.index({ bundleId: 1, updatedAt: 1 });
 
 export default model<Word>('Word', wordSchema, 'words');
