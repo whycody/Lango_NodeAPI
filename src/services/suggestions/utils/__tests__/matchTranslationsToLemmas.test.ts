@@ -337,48 +337,108 @@ describe('matchTranslationsToLemmas', () => {
         };
 
         describe('English verbs', () => {
-            const enVerb: LemmaAttrWithId = { ...baseLemma, _id: 'en1', lang: 'en', lemma: 'run', type: 'verb' };
+            const enVerb: LemmaAttrWithId = {
+                ...baseLemma,
+                _id: 'en1',
+                lang: 'en',
+                lemma: 'run',
+                type: 'verb',
+            };
 
-            it("adds 'to' to word but sets prefix to null for verbs", () => {
+            it("adds 'to' to word and sets prefix for verbs", () => {
                 const translations: TranslationItem[] = [
-                    { source: 'run', sourceArticle: 'to', isValid: true, translations: ['biegać'], example: null },
+                    {
+                        source: 'run',
+                        sourceArticle: 'to',
+                        isValid: true,
+                        translations: ['biegać'],
+                        example: null,
+                    },
                 ];
 
                 const result = matchTranslationsToLemmas(translations, [enVerb]);
 
                 expect(result).toEqual([
-                    { lemmaId: 'en1', lemma: 'run', isValid: true, word: 'to run', translation: 'biegać', example: null, prefix: null },
+                    {
+                        lemmaId: 'en1',
+                        lemma: 'run',
+                        isValid: true,
+                        word: 'to run',
+                        translation: 'biegać',
+                        example: null,
+                        prefix: 'to ',
+                    },
                 ]);
             });
 
-            it("ignores disallowed prefix for English verbs", () => {
+            it('ignores disallowed prefix for English verbs', () => {
                 const translations: TranslationItem[] = [
-                    { source: 'run', sourceArticle: 'the', isValid: true, translations: ['biegać'], example: null },
+                    {
+                        source: 'run',
+                        sourceArticle: 'the',
+                        isValid: true,
+                        translations: ['biegać'],
+                        example: null,
+                    },
                 ];
 
                 const result = matchTranslationsToLemmas(translations, [enVerb]);
 
                 expect(result).toEqual([
-                    { lemmaId: 'en1', lemma: 'run', isValid: true, word: 'run', translation: 'biegać', example: null, prefix: null },
+                    {
+                        lemmaId: 'en1',
+                        lemma: 'run',
+                        isValid: true,
+                        word: 'run',
+                        translation: 'biegać',
+                        example: null,
+                        prefix: null,
+                    },
                 ]);
             });
 
-            it("ignores article for English noun (no allowed prefixes for en subst)", () => {
-                const enNoun: LemmaAttrWithId = { ...baseLemma, _id: 'en2', lang: 'en', lemma: 'dog', type: 'subst' };
+            it('ignores article for English noun (no allowed prefixes for en subst)', () => {
+                const enNoun: LemmaAttrWithId = {
+                    ...baseLemma,
+                    _id: 'en2',
+                    lang: 'en',
+                    lemma: 'dog',
+                    type: 'subst',
+                };
                 const translations: TranslationItem[] = [
-                    { source: 'dog', sourceArticle: 'the', isValid: true, translations: ['pies'], example: null },
+                    {
+                        source: 'dog',
+                        sourceArticle: 'the',
+                        isValid: true,
+                        translations: ['pies'],
+                        example: null,
+                    },
                 ];
 
                 const result = matchTranslationsToLemmas(translations, [enNoun]);
 
                 expect(result).toEqual([
-                    { lemmaId: 'en2', lemma: 'dog', isValid: true, word: 'dog', translation: 'pies', example: null, prefix: null },
+                    {
+                        lemmaId: 'en2',
+                        lemma: 'dog',
+                        isValid: true,
+                        word: 'dog',
+                        translation: 'pies',
+                        example: null,
+                        prefix: null,
+                    },
                 ]);
             });
         });
 
         describe('Spanish nouns', () => {
-            const esNoun: LemmaAttrWithId = { ...baseLemma, _id: 'es1', lang: 'es', lemma: 'libro', type: 'subst' };
+            const esNoun: LemmaAttrWithId = {
+                ...baseLemma,
+                _id: 'es1',
+                lang: 'es',
+                lemma: 'libro',
+                type: 'subst',
+            };
 
             it.each([
                 ['el', 'el libro', 'el '],
@@ -391,7 +451,13 @@ describe('matchTranslationsToLemmas', () => {
                 ['unas', 'unas libro', 'unas '],
             ])("allows article '%s'", (article, expectedWord, expectedPrefix) => {
                 const translations: TranslationItem[] = [
-                    { source: 'libro', sourceArticle: article, isValid: true, translations: ['książka'], example: null },
+                    {
+                        source: 'libro',
+                        sourceArticle: article,
+                        isValid: true,
+                        translations: ['książka'],
+                        example: null,
+                    },
                 ];
 
                 const result = matchTranslationsToLemmas(translations, [esNoun]);
@@ -399,21 +465,41 @@ describe('matchTranslationsToLemmas', () => {
                 expect(result[0]).toMatchObject({ word: expectedWord, prefix: expectedPrefix });
             });
 
-            it("ignores disallowed prefix for Spanish nouns", () => {
+            it('ignores disallowed prefix for Spanish nouns', () => {
                 const translations: TranslationItem[] = [
-                    { source: 'libro', sourceArticle: 'il', isValid: true, translations: ['książka'], example: null },
+                    {
+                        source: 'libro',
+                        sourceArticle: 'il',
+                        isValid: true,
+                        translations: ['książka'],
+                        example: null,
+                    },
                 ];
 
                 const result = matchTranslationsToLemmas(translations, [esNoun]);
 
                 expect(result).toEqual([
-                    { lemmaId: 'es1', lemma: 'libro', isValid: true, word: 'libro', translation: 'książka', example: null, prefix: null },
+                    {
+                        lemmaId: 'es1',
+                        lemma: 'libro',
+                        isValid: true,
+                        word: 'libro',
+                        translation: 'książka',
+                        example: null,
+                        prefix: null,
+                    },
                 ]);
             });
         });
 
         describe('Italian nouns — all allowed prefixes', () => {
-            const itNoun: LemmaAttrWithId = { ...baseLemma, _id: 'it5', lang: 'it', lemma: 'zaino', type: 'subst' };
+            const itNoun: LemmaAttrWithId = {
+                ...baseLemma,
+                _id: 'it5',
+                lang: 'it',
+                lemma: 'zaino',
+                type: 'subst',
+            };
 
             it.each([
                 ['lo', 'lo zaino', 'lo '],
@@ -425,10 +511,16 @@ describe('matchTranslationsToLemmas', () => {
                 ['uno', 'uno zaino', 'uno '],
                 ['una', 'una zaino', 'una '],
                 ["un'", "un'zaino", "un'"],
-                ["un’", "un’zaino", "un’"],
+                ['un’', 'un’zaino', 'un’'],
             ])("allows Italian article '%s'", (article, expectedWord, expectedPrefix) => {
                 const translations: TranslationItem[] = [
-                    { source: 'zaino', sourceArticle: article, isValid: true, translations: ['plecak'], example: null },
+                    {
+                        source: 'zaino',
+                        sourceArticle: article,
+                        isValid: true,
+                        translations: ['plecak'],
+                        example: null,
+                    },
                 ];
 
                 const result = matchTranslationsToLemmas(translations, [itNoun]);
@@ -439,45 +531,105 @@ describe('matchTranslationsToLemmas', () => {
 
         describe('Italian verbs', () => {
             it("ignores article for Italian verb (verbs have no allowed prefixes in 'it')", () => {
-                const itVerb: LemmaAttrWithId = { ...baseLemma, _id: 'it6', lang: 'it', lemma: 'cantare', type: 'verb' };
+                const itVerb: LemmaAttrWithId = {
+                    ...baseLemma,
+                    _id: 'it6',
+                    lang: 'it',
+                    lemma: 'cantare',
+                    type: 'verb',
+                };
                 const translations: TranslationItem[] = [
-                    { source: 'cantare', sourceArticle: 'il', isValid: true, translations: ['śpiewać'], example: null },
+                    {
+                        source: 'cantare',
+                        sourceArticle: 'il',
+                        isValid: true,
+                        translations: ['śpiewać'],
+                        example: null,
+                    },
                 ];
 
                 const result = matchTranslationsToLemmas(translations, [itVerb]);
 
                 expect(result).toEqual([
-                    { lemmaId: 'it6', lemma: 'cantare', isValid: true, word: 'cantare', translation: 'śpiewać', example: null, prefix: null },
+                    {
+                        lemmaId: 'it6',
+                        lemma: 'cantare',
+                        isValid: true,
+                        word: 'cantare',
+                        translation: 'śpiewać',
+                        example: null,
+                        prefix: null,
+                    },
                 ]);
             });
         });
 
         describe('Polish', () => {
             it("ignores any article for Polish nouns (no allowed prefixes for 'pl')", () => {
-                const plNoun: LemmaAttrWithId = { ...baseLemma, _id: 'pl1', lang: 'pl', lemma: 'pies', type: 'subst' };
+                const plNoun: LemmaAttrWithId = {
+                    ...baseLemma,
+                    _id: 'pl1',
+                    lang: 'pl',
+                    lemma: 'pies',
+                    type: 'subst',
+                };
                 const translations: TranslationItem[] = [
-                    { source: 'pies', sourceArticle: 'ten', isValid: true, translations: ['dog'], example: null },
+                    {
+                        source: 'pies',
+                        sourceArticle: 'ten',
+                        isValid: true,
+                        translations: ['dog'],
+                        example: null,
+                    },
                 ];
 
                 const result = matchTranslationsToLemmas(translations, [plNoun]);
 
                 expect(result).toEqual([
-                    { lemmaId: 'pl1', lemma: 'pies', isValid: true, word: 'pies', translation: 'dog', example: null, prefix: null },
+                    {
+                        lemmaId: 'pl1',
+                        lemma: 'pies',
+                        isValid: true,
+                        word: 'pies',
+                        translation: 'dog',
+                        example: null,
+                        prefix: null,
+                    },
                 ]);
             });
         });
 
         describe('isValid edge cases', () => {
-            it("treats isValid=true with empty translations as invalid", () => {
-                const itNoun: LemmaAttrWithId = { ...baseLemma, _id: 'it7', lang: 'it', lemma: 'amico', type: 'subst' };
+            it('treats isValid=true with empty translations as invalid', () => {
+                const itNoun: LemmaAttrWithId = {
+                    ...baseLemma,
+                    _id: 'it7',
+                    lang: 'it',
+                    lemma: 'amico',
+                    type: 'subst',
+                };
                 const translations: TranslationItem[] = [
-                    { source: 'amico', sourceArticle: "l'", isValid: true, translations: [], example: null },
+                    {
+                        source: 'amico',
+                        sourceArticle: "l'",
+                        isValid: true,
+                        translations: [],
+                        example: null,
+                    },
                 ];
 
                 const result = matchTranslationsToLemmas(translations, [itNoun]);
 
                 expect(result).toEqual([
-                    { lemmaId: 'it7', lemma: 'amico', isValid: false, word: "l'amico", translation: null, example: null, prefix: "l'" },
+                    {
+                        lemmaId: 'it7',
+                        lemma: 'amico',
+                        isValid: false,
+                        word: "l'amico",
+                        translation: null,
+                        example: null,
+                        prefix: "l'",
+                    },
                 ]);
             });
         });

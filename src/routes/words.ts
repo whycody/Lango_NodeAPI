@@ -4,54 +4,60 @@ import { Types } from 'mongoose';
 import authenticate from '../middleware/auth';
 import BundleMember from '../models/core/BundleMember';
 import Word from '../models/core/Word';
+import WordsBundle from '../models/core/WordsBundle';
 
 const router = Router();
 
 const nowUTC = () => new Date().toISOString();
 
+const mapWord = (word: Record<string, unknown>) => ({ ...word, _id: undefined, id: word._id });
+
 router.get('/words', authenticate, async (req: Request, res: Response) => {
     const { bundleId, since } = req.query;
     const userId = req.userId ?? '';
+
+    const sinceFilter = since ? { $gt: new Date(since as string) } : undefined;
+
+    if (bundleId) {
+        const requestedBundleId = bundleId as string;
+
+        const bundle = await WordsBundle.findOne({ _id: requestedBundleId, removed: false });
+
+        if (!bundle) {
+            return res.status(404).json({ message: 'Bundle not found' });
+        }
+
+        if (bundle.visibility !== 'public') {
+            const membership = await BundleMember.findOne({
+                bundleId: requestedBundleId,
+                removed: false,
+                userId: new Types.ObjectId(userId),
+            });
+
+            if (!membership) {
+                return res.status(403).json({ message: 'You do not have access to this bundle' });
+            }
+        }
+
+        const words = await Word.find({
+            bundleId: requestedBundleId,
+            ...(sinceFilter && { updatedAt: sinceFilter }),
+        }).lean();
+
+        return res.json(words.map(mapWord));
+    }
 
     const memberBundleIds = await BundleMember.find({
         removed: false,
         userId: new Types.ObjectId(userId),
     }).distinct('bundleId');
 
-    const memberBundleIdStrings = memberBundleIds.map(id => id.toString());
+    const words = await Word.find({
+        $or: [{ bundleId: null, userId }, { bundleId: { $in: memberBundleIds } }],
+        ...(sinceFilter && { updatedAt: sinceFilter }),
+    }).lean();
 
-    const query: {
-        $or: Array<{ bundleId?: { $in: string[] }; userId?: string }>;
-        updatedAt?: { $gt: Date };
-    } = {
-        $or: [{ userId }, { bundleId: { $in: memberBundleIdStrings } }],
-    };
-
-    if (since) {
-        query.updatedAt = { $gt: new Date(since as string) };
-    }
-
-    if (bundleId) {
-        const requestedBundleId = bundleId as string;
-        const allowedBundleIds = memberBundleIdStrings.includes(requestedBundleId)
-            ? [requestedBundleId]
-            : [];
-
-        query.$or = [
-            { bundleId: { $in: [requestedBundleId] }, userId },
-            { bundleId: { $in: allowedBundleIds } },
-        ];
-    }
-
-    const words = await Word.find(query).lean();
-
-    const mappedWords = words.map(word => ({
-        ...word,
-        _id: undefined,
-        id: word._id,
-    }));
-
-    res.json(mappedWords);
+    res.json(words.map(mapWord));
 });
 
 router.post('/words/sync', authenticate, async (req: Request, res: Response) => {
