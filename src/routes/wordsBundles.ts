@@ -2,10 +2,20 @@ import crypto from 'crypto';
 import { Request, Response, Router } from 'express';
 import { Types } from 'mongoose';
 
+import { LanguageCode, LanguageCodeValue } from '../constants/languageCodes';
 import authenticate from '../middleware/auth';
 import BundleJoinCode from '../models/core/BundleJoinCode';
 import BundleMember from '../models/core/BundleMember';
+import User from '../models/core/User';
+import Word from '../models/core/Word';
 import WordsBundle from '../models/core/WordsBundle';
+import { stripDiacritics } from '../services/utils/stripDiacritics';
+
+const languageCodes: string[] = Object.values(LanguageCode);
+const isLanguageCode = (value: unknown): value is LanguageCodeValue =>
+    typeof value === 'string' && languageCodes.includes(value);
+
+const normalizeForSearch = (text: string): string => stripDiacritics(text).toLowerCase();
 
 const router = Router();
 
@@ -79,6 +89,88 @@ router.get('/by-ids', authenticate, async (req: Request, res: Response) => {
     }));
 
     res.json(mappedBundles);
+});
+
+router.get('/search', authenticate, async (req: Request, res: Response) => {
+    const { limit, mainLang, offset, q, translationLang } = req.query;
+    const userId = req.userId ?? '';
+
+    const searchTerm = typeof q === 'string' ? q.trim() : '';
+
+    if (!searchTerm) {
+        return res.json({ data: [], total: 0 });
+    }
+
+    const parsedLimit = Number(limit);
+    const resultLimit =
+        Number.isInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 50) : 20;
+
+    const parsedOffset = Number(offset);
+    const resultOffset = Number.isInteger(parsedOffset) && parsedOffset > 0 ? parsedOffset : 0;
+
+    const searchWords = normalizeForSearch(searchTerm)
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+
+    const wordFilters = searchWords.map(word => ({ searchText: new RegExp(word, 'i') }));
+
+    const memberBundleIds = await BundleMember.find({ removed: false, userId }).distinct(
+        'bundleId',
+    );
+
+    const query: {
+        $and: Array<{ searchText: RegExp }>;
+        $or: Array<{ _id: { $in: unknown[] } } | { visibility: string }>;
+        mainLang?: LanguageCodeValue;
+        translationLang?: LanguageCodeValue;
+    } = {
+        $and: wordFilters,
+        $or: [{ visibility: 'public' }, { _id: { $in: memberBundleIds } }],
+    };
+
+    if (isLanguageCode(mainLang)) {
+        query.mainLang = mainLang;
+    }
+
+    if (isLanguageCode(translationLang)) {
+        query.translationLang = translationLang;
+    }
+
+    const [bundles, total] = await Promise.all([
+        WordsBundle.find(query)
+            .sort({ createdAt: -1 })
+            .skip(resultOffset)
+            .limit(resultLimit)
+            .lean(),
+        WordsBundle.countDocuments(query),
+    ]);
+
+    const ownerIds = [...new Set(bundles.map(bundle => bundle.ownerId.toString()))];
+    const bundleIds = bundles.map(bundle => bundle._id);
+
+    const [owners, flashcardsCounts] = await Promise.all([
+        User.find({ _id: { $in: ownerIds } }, { name: 1 }).lean(),
+        Word.aggregate([
+            { $match: { bundleId: { $in: bundleIds }, removed: false } },
+            { $group: { _id: '$bundleId', count: { $sum: 1 } } },
+        ]),
+    ]);
+
+    const ownerNameById = new Map(owners.map(owner => [owner._id.toString(), owner.name]));
+    const flashcardsCountByBundleId = new Map(
+        flashcardsCounts.map(entry => [entry._id.toString(), entry.count]),
+    );
+
+    const mappedBundles = bundles.map(bundle => ({
+        ...bundle,
+        _id: undefined,
+        creatorName: ownerNameById.get(bundle.ownerId.toString()),
+        flashcardsCount: flashcardsCountByBundleId.get(bundle._id.toString()) ?? 0,
+        id: bundle._id,
+    }));
+
+    res.json({ data: mappedBundles, total });
 });
 
 router.post('/sync', authenticate, async (req: Request, res: Response) => {

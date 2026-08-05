@@ -3,11 +3,15 @@ import request from 'supertest';
 import app from '../../app';
 import BundleJoinCode from '../../models/core/BundleJoinCode';
 import BundleMember from '../../models/core/BundleMember';
+import User from '../../models/core/User';
+import Word from '../../models/core/Word';
 import WordsBundle from '../../models/core/WordsBundle';
 
 jest.mock('../../models/core/WordsBundle');
 jest.mock('../../models/core/BundleMember');
 jest.mock('../../models/core/BundleJoinCode');
+jest.mock('../../models/core/User');
+jest.mock('../../models/core/Word');
 jest.mock('jsonwebtoken', () => ({
     ...jest.requireActual('jsonwebtoken'),
     verify: jest.fn(() => ({ userId: '507f1f77bcf86cd799439011' })),
@@ -16,6 +20,14 @@ jest.mock('jsonwebtoken', () => ({
 const auth = 'Bearer mocked-access-token';
 
 const mockLean = (result: unknown) => ({ lean: jest.fn().mockResolvedValue(result) });
+
+const mockSortSkipLimitLean = (result: unknown) => ({
+    sort: jest.fn().mockReturnValue({
+        skip: jest.fn().mockReturnValue({
+            limit: jest.fn().mockReturnValue(mockLean(result)),
+        }),
+    }),
+});
 
 describe('WordsBundles Routes', () => {
     afterEach(() => {
@@ -91,6 +103,379 @@ describe('WordsBundles Routes', () => {
         });
     });
 
+    describe('GET /words-bundles/search', () => {
+        beforeEach(() => {
+            (BundleMember.find as jest.Mock).mockReturnValue({
+                distinct: jest.fn().mockResolvedValue([]),
+            });
+            (User.find as jest.Mock).mockReturnValue(mockLean([]));
+            (Word.aggregate as jest.Mock).mockResolvedValue([]);
+            (WordsBundle.countDocuments as jest.Mock).mockResolvedValue(0);
+        });
+
+        it('returns empty data and total when no query is provided', async () => {
+            const res = await request(app).get('/words-bundles/search').set('Authorization', auth);
+
+            expect(res.status).toBe(200);
+            expect(res.body).toEqual({ data: [], total: 0 });
+            expect(WordsBundle.find).not.toHaveBeenCalled();
+        });
+
+        it('returns empty data and total when query is blank', async () => {
+            const res = await request(app)
+                .get('/words-bundles/search')
+                .query({ q: '   ' })
+                .set('Authorization', auth);
+
+            expect(res.status).toBe(200);
+            expect(res.body).toEqual({ data: [], total: 0 });
+        });
+
+        it('searches public bundles and bundles the user belongs to, by combined search text, using the default limit', async () => {
+            (BundleMember.find as jest.Mock).mockReturnValue({
+                distinct: jest.fn().mockResolvedValue(['bundle2']),
+            });
+            const findMock = jest.fn().mockReturnValue(
+                mockSortSkipLimitLean([
+                    { _id: 'bundle1', ownerId: 'owner1', title: 'Italian basics' },
+                ]),
+            );
+            (WordsBundle.find as jest.Mock) = findMock;
+            (WordsBundle.countDocuments as jest.Mock).mockResolvedValue(1);
+            (User.find as jest.Mock).mockReturnValue(
+                mockLean([{ _id: 'owner1', name: 'Jane' }]),
+            );
+            (Word.aggregate as jest.Mock).mockResolvedValue([{ _id: 'bundle1', count: 3 }]);
+
+            const res = await request(app)
+                .get('/words-bundles/search')
+                .query({ q: 'italian' })
+                .set('Authorization', auth);
+
+            expect(findMock).toHaveBeenCalledWith({
+                $and: [{ searchText: /italian/i }],
+                $or: [{ visibility: 'public' }, { _id: { $in: ['bundle2'] } }],
+            });
+            expect(WordsBundle.countDocuments).toHaveBeenCalledWith({
+                $and: [{ searchText: /italian/i }],
+                $or: [{ visibility: 'public' }, { _id: { $in: ['bundle2'] } }],
+            });
+            expect(res.status).toBe(200);
+            expect(res.body).toEqual({
+                data: [
+                    {
+                        creatorName: 'Jane',
+                        flashcardsCount: 3,
+                        id: 'bundle1',
+                        ownerId: 'owner1',
+                        title: 'Italian basics',
+                    },
+                ],
+                total: 1,
+            });
+        });
+
+        it('sorts results by createdAt descending', async () => {
+            const sortMock = jest.fn().mockReturnValue({
+                skip: jest.fn().mockReturnValue({
+                    limit: jest.fn().mockReturnValue(mockLean([])),
+                }),
+            });
+            (WordsBundle.find as jest.Mock).mockReturnValue({ sort: sortMock });
+
+            await request(app)
+                .get('/words-bundles/search')
+                .query({ q: 'italian' })
+                .set('Authorization', auth);
+
+            expect(sortMock).toHaveBeenCalledWith({ createdAt: -1 });
+        });
+
+        it('defaults flashcardsCount to 0 when no words exist for the bundle', async () => {
+            (WordsBundle.find as jest.Mock).mockReturnValue(
+                mockSortSkipLimitLean([{ _id: 'bundle1', ownerId: 'owner1', title: 'Bundle 1' }]),
+            );
+            (WordsBundle.countDocuments as jest.Mock).mockResolvedValue(1);
+            (User.find as jest.Mock).mockReturnValue(
+                mockLean([{ _id: 'owner1', name: 'Jane' }]),
+            );
+            (Word.aggregate as jest.Mock).mockResolvedValue([]);
+
+            const res = await request(app)
+                .get('/words-bundles/search')
+                .query({ q: 'bundle' })
+                .set('Authorization', auth);
+
+            expect(res.body).toEqual({
+                data: [
+                    {
+                        creatorName: 'Jane',
+                        flashcardsCount: 0,
+                        id: 'bundle1',
+                        ownerId: 'owner1',
+                        title: 'Bundle 1',
+                    },
+                ],
+                total: 1,
+            });
+        });
+
+        it('returns the total count of matching bundles regardless of pagination', async () => {
+            (WordsBundle.find as jest.Mock).mockReturnValue(mockSortSkipLimitLean([]));
+            (WordsBundle.countDocuments as jest.Mock).mockResolvedValue(123);
+
+            const res = await request(app)
+                .get('/words-bundles/search')
+                .query({ limit: '10', q: 'italian' })
+                .set('Authorization', auth);
+
+            expect(res.body.total).toBe(123);
+        });
+
+        it('matches bundles with diacritics using a plain ASCII query', async () => {
+            const findMock = jest
+                .fn()
+                .mockReturnValue(
+                    mockSortSkipLimitLean([{ _id: 'bundle1', ownerId: 'owner1', title: 'Chrobąszcz' }]),
+                );
+            (WordsBundle.find as jest.Mock) = findMock;
+
+            await request(app)
+                .get('/words-bundles/search')
+                .query({ q: 'chrobaszcz' })
+                .set('Authorization', auth);
+
+            expect(findMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    $and: [{ searchText: /chrobaszcz/i }],
+                }),
+            );
+        });
+
+        it('escapes regex special characters in the search term', async () => {
+            const findMock = jest.fn().mockReturnValue(mockSortSkipLimitLean([]));
+            (WordsBundle.find as jest.Mock) = findMock;
+
+            await request(app)
+                .get('/words-bundles/search')
+                .query({ q: 'a.b*c' })
+                .set('Authorization', auth);
+
+            const calledQuery = findMock.mock.calls[0][0];
+            const usedRegex = calledQuery.$and[0].searchText as RegExp;
+
+            expect(usedRegex.source).toBe('a\\.b\\*c');
+            expect(usedRegex.test('a.b*c')).toBe(true);
+            expect(usedRegex.test('axbyc')).toBe(false);
+        });
+
+        it('matches words regardless of order by requiring each word independently', async () => {
+            const findMock = jest.fn().mockReturnValue(
+                mockSortSkipLimitLean([
+                    { _id: 'bundle1', ownerId: 'owner1', title: 'Italian basics' },
+                ]),
+            );
+            (WordsBundle.find as jest.Mock) = findMock;
+            (WordsBundle.countDocuments as jest.Mock).mockResolvedValue(1);
+
+            const res = await request(app)
+                .get('/words-bundles/search')
+                .query({ q: 'basics italian' })
+                .set('Authorization', auth);
+
+            expect(findMock).toHaveBeenCalledWith({
+                $and: [{ searchText: /basics/i }, { searchText: /italian/i }],
+                $or: [{ visibility: 'public' }, { _id: { $in: [] } }],
+            });
+            expect(res.status).toBe(200);
+            expect(res.body).toEqual({
+                data: [
+                    {
+                        creatorName: undefined,
+                        flashcardsCount: 0,
+                        id: 'bundle1',
+                        ownerId: 'owner1',
+                        title: 'Italian basics',
+                    },
+                ],
+                total: 1,
+            });
+        });
+
+        it('collapses repeated whitespace between words', async () => {
+            const findMock = jest.fn().mockReturnValue(mockSortSkipLimitLean([]));
+            (WordsBundle.find as jest.Mock) = findMock;
+
+            await request(app)
+                .get('/words-bundles/search')
+                .query({ q: '  basics   italian  ' })
+                .set('Authorization', auth);
+
+            expect(findMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    $and: [{ searchText: /basics/i }, { searchText: /italian/i }],
+                }),
+            );
+        });
+
+        it('includes a private bundle the user is a non-removed member of', async () => {
+            (BundleMember.find as jest.Mock).mockReturnValue({
+                distinct: jest.fn().mockResolvedValue(['bundle1']),
+            });
+            const findMock = jest.fn().mockReturnValue(
+                mockSortSkipLimitLean([
+                    {
+                        _id: 'bundle1',
+                        ownerId: 'owner1',
+                        title: 'Italian basics',
+                        visibility: 'private',
+                    },
+                ]),
+            );
+            (WordsBundle.find as jest.Mock) = findMock;
+            (WordsBundle.countDocuments as jest.Mock).mockResolvedValue(1);
+
+            const res = await request(app)
+                .get('/words-bundles/search')
+                .query({ q: 'italian' })
+                .set('Authorization', auth);
+
+            expect(findMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    $or: [{ visibility: 'public' }, { _id: { $in: ['bundle1'] } }],
+                }),
+            );
+            expect(res.status).toBe(200);
+            expect(res.body).toEqual({
+                data: [
+                    {
+                        creatorName: undefined,
+                        flashcardsCount: 0,
+                        id: 'bundle1',
+                        ownerId: 'owner1',
+                        title: 'Italian basics',
+                        visibility: 'private',
+                    },
+                ],
+                total: 1,
+            });
+        });
+
+        it('only queries membership for the requesting user, excluding removed memberships', async () => {
+            const distinctMock = jest.fn().mockResolvedValue([]);
+            (BundleMember.find as jest.Mock).mockReturnValue({ distinct: distinctMock });
+            (WordsBundle.find as jest.Mock).mockReturnValue(mockSortSkipLimitLean([]));
+
+            await request(app)
+                .get('/words-bundles/search')
+                .query({ q: 'italian' })
+                .set('Authorization', auth);
+
+            expect(BundleMember.find).toHaveBeenCalledWith({
+                removed: false,
+                userId: '507f1f77bcf86cd799439011',
+            });
+            expect(distinctMock).toHaveBeenCalledWith('bundleId');
+        });
+
+        it('caps the result limit at 50', async () => {
+            const limitMock = jest.fn().mockReturnValue(mockLean([]));
+            const skipMock = jest.fn().mockReturnValue({ limit: limitMock });
+            (WordsBundle.find as jest.Mock).mockReturnValue({ sort: jest.fn().mockReturnValue({ skip: skipMock }) });
+
+            await request(app)
+                .get('/words-bundles/search')
+                .query({ limit: '500', q: 'italian' })
+                .set('Authorization', auth);
+
+            expect(limitMock).toHaveBeenCalledWith(50);
+        });
+
+        it('falls back to the default limit when an invalid limit is provided', async () => {
+            const limitMock = jest.fn().mockReturnValue(mockLean([]));
+            const skipMock = jest.fn().mockReturnValue({ limit: limitMock });
+            (WordsBundle.find as jest.Mock).mockReturnValue({ sort: jest.fn().mockReturnValue({ skip: skipMock }) });
+
+            await request(app)
+                .get('/words-bundles/search')
+                .query({ limit: 'abc', q: 'italian' })
+                .set('Authorization', auth);
+
+            expect(limitMock).toHaveBeenCalledWith(20);
+        });
+
+        it('defaults offset to 0 when not provided', async () => {
+            const limitMock = jest.fn().mockReturnValue(mockLean([]));
+            const skipMock = jest.fn().mockReturnValue({ limit: limitMock });
+            (WordsBundle.find as jest.Mock).mockReturnValue({ sort: jest.fn().mockReturnValue({ skip: skipMock }) });
+
+            await request(app)
+                .get('/words-bundles/search')
+                .query({ q: 'italian' })
+                .set('Authorization', auth);
+
+            expect(skipMock).toHaveBeenCalledWith(0);
+        });
+
+        it('applies the provided offset', async () => {
+            const limitMock = jest.fn().mockReturnValue(mockLean([]));
+            const skipMock = jest.fn().mockReturnValue({ limit: limitMock });
+            (WordsBundle.find as jest.Mock).mockReturnValue({ sort: jest.fn().mockReturnValue({ skip: skipMock }) });
+
+            await request(app)
+                .get('/words-bundles/search')
+                .query({ offset: '40', q: 'italian' })
+                .set('Authorization', auth);
+
+            expect(skipMock).toHaveBeenCalledWith(40);
+        });
+
+        it('falls back to offset 0 when a negative or invalid offset is provided', async () => {
+            const limitMock = jest.fn().mockReturnValue(mockLean([]));
+            const skipMock = jest.fn().mockReturnValue({ limit: limitMock });
+            (WordsBundle.find as jest.Mock).mockReturnValue({ sort: jest.fn().mockReturnValue({ skip: skipMock }) });
+
+            await request(app)
+                .get('/words-bundles/search')
+                .query({ offset: '-5', q: 'italian' })
+                .set('Authorization', auth);
+
+            expect(skipMock).toHaveBeenCalledWith(0);
+        });
+
+        it('filters by mainLang and translationLang when provided', async () => {
+            const findMock = jest.fn().mockReturnValue(mockSortSkipLimitLean([]));
+            (WordsBundle.find as jest.Mock) = findMock;
+
+            await request(app)
+                .get('/words-bundles/search')
+                .query({ mainLang: 'it', q: 'italian', translationLang: 'pl' })
+                .set('Authorization', auth);
+
+            expect(findMock).toHaveBeenCalledWith({
+                $and: [{ searchText: /italian/i }],
+                $or: [{ visibility: 'public' }, { _id: { $in: [] } }],
+                mainLang: 'it',
+                translationLang: 'pl',
+            });
+        });
+
+        it('ignores invalid mainLang and translationLang values', async () => {
+            const findMock = jest.fn().mockReturnValue(mockSortSkipLimitLean([]));
+            (WordsBundle.find as jest.Mock) = findMock;
+
+            await request(app)
+                .get('/words-bundles/search')
+                .query({ mainLang: 'xx', q: 'italian', translationLang: 'yy' })
+                .set('Authorization', auth);
+
+            expect(findMock).toHaveBeenCalledWith({
+                $and: [{ searchText: /italian/i }],
+                $or: [{ visibility: 'public' }, { _id: { $in: [] } }],
+            });
+        });
+    });
+
     describe('POST /words-bundles/sync', () => {
         it('creates a new bundle when it does not exist', async () => {
             (WordsBundle.findOne as jest.Mock).mockResolvedValue(null);
@@ -113,6 +498,38 @@ describe('WordsBundles Routes', () => {
 
             expect(res.status).toBe(200);
             expect(res.body).toEqual([{ id: 'bundle1', updatedAt: '2026-01-01T00:00:00.000Z' }]);
+        });
+
+        it('passes title and description through to $set unchanged, leaving searchText to the model hook', async () => {
+            (WordsBundle.findOne as jest.Mock).mockResolvedValue(null);
+            (WordsBundle.findOneAndUpdate as jest.Mock).mockResolvedValue({
+                _id: 'bundle1',
+                updatedAt: '2026-01-01T00:00:00.000Z',
+                visibility: 'public',
+            });
+
+            await request(app)
+                .post('/words-bundles/sync')
+                .set('Authorization', auth)
+                .send([
+                    {
+                        description: 'Chrobąszcz opis',
+                        id: 'bundle1',
+                        locallyUpdatedAt: '2026-01-01T00:00:00.000Z',
+                        title: 'Chrobąszcz',
+                    },
+                ]);
+
+            expect(WordsBundle.findOneAndUpdate).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    $set: expect.objectContaining({
+                        description: 'Chrobąszcz opis',
+                        title: 'Chrobąszcz',
+                    }),
+                }),
+                expect.anything(),
+            );
         });
 
         it('skips bundle when local update is older than existing', async () => {
