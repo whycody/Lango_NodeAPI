@@ -5,12 +5,11 @@ import authenticate from '../middleware/auth';
 import BundleMember from '../models/core/BundleMember';
 import Word from '../models/core/Word';
 import WordsBundle from '../models/core/WordsBundle';
+import { withIdField } from '../services/utils/withIdField';
 
 const router = Router();
 
 const nowUTC = () => new Date().toISOString();
-
-const mapWord = (word: Record<string, unknown>) => ({ ...word, _id: undefined, id: word._id });
 
 router.get('/words', authenticate, async (req: Request, res: Response) => {
     const { bundleId, since } = req.query;
@@ -44,7 +43,7 @@ router.get('/words', authenticate, async (req: Request, res: Response) => {
             ...(sinceFilter && { updatedAt: sinceFilter }),
         }).lean();
 
-        return res.json(words.map(mapWord));
+        return res.json(words.map(withIdField));
     }
 
     const memberBundleIds = await BundleMember.find({
@@ -57,7 +56,7 @@ router.get('/words', authenticate, async (req: Request, res: Response) => {
         ...(sinceFilter && { updatedAt: sinceFilter }),
     }).lean();
 
-    res.json(words.map(mapWord));
+    res.json(words.map(withIdField));
 });
 
 router.post('/words/sync', authenticate, async (req: Request, res: Response) => {
@@ -115,13 +114,11 @@ router.post('/words/sync', authenticate, async (req: Request, res: Response) => 
         }
     }
 
-    const mappedUnauthorizedWords = unauthorizedWords.map(word => ({
-        ...word,
-        _id: undefined,
-        id: word._id,
-    }));
-
-    res.json({ rejectedWordIds, syncedWords, unauthorizedWords: mappedUnauthorizedWords });
+    res.json({
+        rejectedWordIds,
+        syncedWords,
+        unauthorizedWords: unauthorizedWords.map(withIdField),
+    });
 });
 
 export default router;

@@ -21,13 +21,16 @@ const auth = 'Bearer mocked-access-token';
 
 const mockLean = (result: unknown) => ({ lean: jest.fn().mockResolvedValue(result) });
 
-const mockSortSkipLimitLean = (result: unknown) => ({
-    sort: jest.fn().mockReturnValue({
-        skip: jest.fn().mockReturnValue({
-            limit: jest.fn().mockReturnValue(mockLean(result)),
-        }),
-    }),
-});
+const mockSearchAggregate = (data: unknown[], total: number) =>
+    jest.fn().mockResolvedValue([{ data, totalCount: total ? [{ total }] : [] }]);
+
+const getAggregatePipeline = (aggregateMock: jest.Mock) => aggregateMock.mock.calls[0][0];
+
+const getMatchStage = (aggregateMock: jest.Mock) => getAggregatePipeline(aggregateMock)[0].$match;
+
+const getFacetDataStages = (aggregateMock: jest.Mock) =>
+    getAggregatePipeline(aggregateMock).find((stage: Record<string, unknown>) => stage.$facet)
+        .$facet.data;
 
 describe('WordsBundles Routes', () => {
     afterEach(() => {
@@ -110,7 +113,7 @@ describe('WordsBundles Routes', () => {
             });
             (User.find as jest.Mock).mockReturnValue(mockLean([]));
             (Word.aggregate as jest.Mock).mockResolvedValue([]);
-            (WordsBundle.countDocuments as jest.Mock).mockResolvedValue(0);
+            (WordsBundle.aggregate as jest.Mock) = mockSearchAggregate([], 0);
         });
 
         it('returns empty data and total when no query is provided', async () => {
@@ -118,7 +121,7 @@ describe('WordsBundles Routes', () => {
 
             expect(res.status).toBe(200);
             expect(res.body).toEqual({ data: [], total: 0 });
-            expect(WordsBundle.find).not.toHaveBeenCalled();
+            expect(WordsBundle.aggregate).not.toHaveBeenCalled();
         });
 
         it('returns empty data and total when query is blank', async () => {
@@ -135,16 +138,12 @@ describe('WordsBundles Routes', () => {
             (BundleMember.find as jest.Mock).mockReturnValue({
                 distinct: jest.fn().mockResolvedValue(['bundle2']),
             });
-            const findMock = jest.fn().mockReturnValue(
-                mockSortSkipLimitLean([
-                    { _id: 'bundle1', ownerId: 'owner1', title: 'Italian basics' },
-                ]),
+            const aggregateMock = mockSearchAggregate(
+                [{ _id: 'bundle1', ownerId: 'owner1', title: 'Italian basics' }],
+                1,
             );
-            (WordsBundle.find as jest.Mock) = findMock;
-            (WordsBundle.countDocuments as jest.Mock).mockResolvedValue(1);
-            (User.find as jest.Mock).mockReturnValue(
-                mockLean([{ _id: 'owner1', name: 'Jane' }]),
-            );
+            (WordsBundle.aggregate as jest.Mock) = aggregateMock;
+            (User.find as jest.Mock).mockReturnValue(mockLean([{ _id: 'owner1', name: 'Jane' }]));
             (Word.aggregate as jest.Mock).mockResolvedValue([{ _id: 'bundle1', count: 3 }]);
 
             const res = await request(app)
@@ -152,13 +151,10 @@ describe('WordsBundles Routes', () => {
                 .query({ q: 'italian' })
                 .set('Authorization', auth);
 
-            expect(findMock).toHaveBeenCalledWith({
+            expect(getMatchStage(aggregateMock)).toEqual({
                 $and: [{ searchText: /italian/i }],
                 $or: [{ visibility: 'public' }, { _id: { $in: ['bundle2'] } }],
-            });
-            expect(WordsBundle.countDocuments).toHaveBeenCalledWith({
-                $and: [{ searchText: /italian/i }],
-                $or: [{ visibility: 'public' }, { _id: { $in: ['bundle2'] } }],
+                removed: false,
             });
             expect(res.status).toBe(200);
             expect(res.body).toEqual({
@@ -176,29 +172,25 @@ describe('WordsBundles Routes', () => {
         });
 
         it('sorts results by createdAt descending', async () => {
-            const sortMock = jest.fn().mockReturnValue({
-                skip: jest.fn().mockReturnValue({
-                    limit: jest.fn().mockReturnValue(mockLean([])),
-                }),
-            });
-            (WordsBundle.find as jest.Mock).mockReturnValue({ sort: sortMock });
+            const aggregateMock = mockSearchAggregate([], 0);
+            (WordsBundle.aggregate as jest.Mock) = aggregateMock;
 
             await request(app)
                 .get('/words-bundles/search')
                 .query({ q: 'italian' })
                 .set('Authorization', auth);
 
-            expect(sortMock).toHaveBeenCalledWith({ createdAt: -1 });
+            expect(getFacetDataStages(aggregateMock)).toContainEqual({
+                $sort: { createdAt: -1 },
+            });
         });
 
         it('defaults flashcardsCount to 0 when no words exist for the bundle', async () => {
-            (WordsBundle.find as jest.Mock).mockReturnValue(
-                mockSortSkipLimitLean([{ _id: 'bundle1', ownerId: 'owner1', title: 'Bundle 1' }]),
+            (WordsBundle.aggregate as jest.Mock) = mockSearchAggregate(
+                [{ _id: 'bundle1', ownerId: 'owner1', title: 'Bundle 1' }],
+                1,
             );
-            (WordsBundle.countDocuments as jest.Mock).mockResolvedValue(1);
-            (User.find as jest.Mock).mockReturnValue(
-                mockLean([{ _id: 'owner1', name: 'Jane' }]),
-            );
+            (User.find as jest.Mock).mockReturnValue(mockLean([{ _id: 'owner1', name: 'Jane' }]));
             (Word.aggregate as jest.Mock).mockResolvedValue([]);
 
             const res = await request(app)
@@ -221,8 +213,7 @@ describe('WordsBundles Routes', () => {
         });
 
         it('returns the total count of matching bundles regardless of pagination', async () => {
-            (WordsBundle.find as jest.Mock).mockReturnValue(mockSortSkipLimitLean([]));
-            (WordsBundle.countDocuments as jest.Mock).mockResolvedValue(123);
+            (WordsBundle.aggregate as jest.Mock) = mockSearchAggregate([], 123);
 
             const res = await request(app)
                 .get('/words-bundles/search')
@@ -233,19 +224,18 @@ describe('WordsBundles Routes', () => {
         });
 
         it('matches bundles with diacritics using a plain ASCII query', async () => {
-            const findMock = jest
-                .fn()
-                .mockReturnValue(
-                    mockSortSkipLimitLean([{ _id: 'bundle1', ownerId: 'owner1', title: 'Chrobąszcz' }]),
-                );
-            (WordsBundle.find as jest.Mock) = findMock;
+            const aggregateMock = mockSearchAggregate(
+                [{ _id: 'bundle1', ownerId: 'owner1', title: 'Chrobąszcz' }],
+                1,
+            );
+            (WordsBundle.aggregate as jest.Mock) = aggregateMock;
 
             await request(app)
                 .get('/words-bundles/search')
                 .query({ q: 'chrobaszcz' })
                 .set('Authorization', auth);
 
-            expect(findMock).toHaveBeenCalledWith(
+            expect(getMatchStage(aggregateMock)).toEqual(
                 expect.objectContaining({
                     $and: [{ searchText: /chrobaszcz/i }],
                 }),
@@ -253,15 +243,15 @@ describe('WordsBundles Routes', () => {
         });
 
         it('escapes regex special characters in the search term', async () => {
-            const findMock = jest.fn().mockReturnValue(mockSortSkipLimitLean([]));
-            (WordsBundle.find as jest.Mock) = findMock;
+            const aggregateMock = mockSearchAggregate([], 0);
+            (WordsBundle.aggregate as jest.Mock) = aggregateMock;
 
             await request(app)
                 .get('/words-bundles/search')
                 .query({ q: 'a.b*c' })
                 .set('Authorization', auth);
 
-            const calledQuery = findMock.mock.calls[0][0];
+            const calledQuery = getMatchStage(aggregateMock);
             const usedRegex = calledQuery.$and[0].searchText as RegExp;
 
             expect(usedRegex.source).toBe('a\\.b\\*c');
@@ -270,22 +260,21 @@ describe('WordsBundles Routes', () => {
         });
 
         it('matches words regardless of order by requiring each word independently', async () => {
-            const findMock = jest.fn().mockReturnValue(
-                mockSortSkipLimitLean([
-                    { _id: 'bundle1', ownerId: 'owner1', title: 'Italian basics' },
-                ]),
+            const aggregateMock = mockSearchAggregate(
+                [{ _id: 'bundle1', ownerId: 'owner1', title: 'Italian basics' }],
+                1,
             );
-            (WordsBundle.find as jest.Mock) = findMock;
-            (WordsBundle.countDocuments as jest.Mock).mockResolvedValue(1);
+            (WordsBundle.aggregate as jest.Mock) = aggregateMock;
 
             const res = await request(app)
                 .get('/words-bundles/search')
                 .query({ q: 'basics italian' })
                 .set('Authorization', auth);
 
-            expect(findMock).toHaveBeenCalledWith({
+            expect(getMatchStage(aggregateMock)).toEqual({
                 $and: [{ searchText: /basics/i }, { searchText: /italian/i }],
                 $or: [{ visibility: 'public' }, { _id: { $in: [] } }],
+                removed: false,
             });
             expect(res.status).toBe(200);
             expect(res.body).toEqual({
@@ -303,15 +292,15 @@ describe('WordsBundles Routes', () => {
         });
 
         it('collapses repeated whitespace between words', async () => {
-            const findMock = jest.fn().mockReturnValue(mockSortSkipLimitLean([]));
-            (WordsBundle.find as jest.Mock) = findMock;
+            const aggregateMock = mockSearchAggregate([], 0);
+            (WordsBundle.aggregate as jest.Mock) = aggregateMock;
 
             await request(app)
                 .get('/words-bundles/search')
                 .query({ q: '  basics   italian  ' })
                 .set('Authorization', auth);
 
-            expect(findMock).toHaveBeenCalledWith(
+            expect(getMatchStage(aggregateMock)).toEqual(
                 expect.objectContaining({
                     $and: [{ searchText: /basics/i }, { searchText: /italian/i }],
                 }),
@@ -322,25 +311,25 @@ describe('WordsBundles Routes', () => {
             (BundleMember.find as jest.Mock).mockReturnValue({
                 distinct: jest.fn().mockResolvedValue(['bundle1']),
             });
-            const findMock = jest.fn().mockReturnValue(
-                mockSortSkipLimitLean([
+            const aggregateMock = mockSearchAggregate(
+                [
                     {
                         _id: 'bundle1',
                         ownerId: 'owner1',
                         title: 'Italian basics',
                         visibility: 'private',
                     },
-                ]),
+                ],
+                1,
             );
-            (WordsBundle.find as jest.Mock) = findMock;
-            (WordsBundle.countDocuments as jest.Mock).mockResolvedValue(1);
+            (WordsBundle.aggregate as jest.Mock) = aggregateMock;
 
             const res = await request(app)
                 .get('/words-bundles/search')
                 .query({ q: 'italian' })
                 .set('Authorization', auth);
 
-            expect(findMock).toHaveBeenCalledWith(
+            expect(getMatchStage(aggregateMock)).toEqual(
                 expect.objectContaining({
                     $or: [{ visibility: 'public' }, { _id: { $in: ['bundle1'] } }],
                 }),
@@ -364,7 +353,7 @@ describe('WordsBundles Routes', () => {
         it('only queries membership for the requesting user, excluding removed memberships', async () => {
             const distinctMock = jest.fn().mockResolvedValue([]);
             (BundleMember.find as jest.Mock).mockReturnValue({ distinct: distinctMock });
-            (WordsBundle.find as jest.Mock).mockReturnValue(mockSortSkipLimitLean([]));
+            (WordsBundle.aggregate as jest.Mock) = mockSearchAggregate([], 0);
 
             await request(app)
                 .get('/words-bundles/search')
@@ -379,99 +368,96 @@ describe('WordsBundles Routes', () => {
         });
 
         it('caps the result limit at 50', async () => {
-            const limitMock = jest.fn().mockReturnValue(mockLean([]));
-            const skipMock = jest.fn().mockReturnValue({ limit: limitMock });
-            (WordsBundle.find as jest.Mock).mockReturnValue({ sort: jest.fn().mockReturnValue({ skip: skipMock }) });
+            const aggregateMock = mockSearchAggregate([], 0);
+            (WordsBundle.aggregate as jest.Mock) = aggregateMock;
 
             await request(app)
                 .get('/words-bundles/search')
                 .query({ limit: '500', q: 'italian' })
                 .set('Authorization', auth);
 
-            expect(limitMock).toHaveBeenCalledWith(50);
+            expect(getFacetDataStages(aggregateMock)).toContainEqual({ $limit: 50 });
         });
 
         it('falls back to the default limit when an invalid limit is provided', async () => {
-            const limitMock = jest.fn().mockReturnValue(mockLean([]));
-            const skipMock = jest.fn().mockReturnValue({ limit: limitMock });
-            (WordsBundle.find as jest.Mock).mockReturnValue({ sort: jest.fn().mockReturnValue({ skip: skipMock }) });
+            const aggregateMock = mockSearchAggregate([], 0);
+            (WordsBundle.aggregate as jest.Mock) = aggregateMock;
 
             await request(app)
                 .get('/words-bundles/search')
                 .query({ limit: 'abc', q: 'italian' })
                 .set('Authorization', auth);
 
-            expect(limitMock).toHaveBeenCalledWith(20);
+            expect(getFacetDataStages(aggregateMock)).toContainEqual({ $limit: 20 });
         });
 
         it('defaults offset to 0 when not provided', async () => {
-            const limitMock = jest.fn().mockReturnValue(mockLean([]));
-            const skipMock = jest.fn().mockReturnValue({ limit: limitMock });
-            (WordsBundle.find as jest.Mock).mockReturnValue({ sort: jest.fn().mockReturnValue({ skip: skipMock }) });
+            const aggregateMock = mockSearchAggregate([], 0);
+            (WordsBundle.aggregate as jest.Mock) = aggregateMock;
 
             await request(app)
                 .get('/words-bundles/search')
                 .query({ q: 'italian' })
                 .set('Authorization', auth);
 
-            expect(skipMock).toHaveBeenCalledWith(0);
+            expect(getFacetDataStages(aggregateMock)).toContainEqual({ $skip: 0 });
         });
 
         it('applies the provided offset', async () => {
-            const limitMock = jest.fn().mockReturnValue(mockLean([]));
-            const skipMock = jest.fn().mockReturnValue({ limit: limitMock });
-            (WordsBundle.find as jest.Mock).mockReturnValue({ sort: jest.fn().mockReturnValue({ skip: skipMock }) });
+            const aggregateMock = mockSearchAggregate([], 0);
+            (WordsBundle.aggregate as jest.Mock) = aggregateMock;
 
             await request(app)
                 .get('/words-bundles/search')
                 .query({ offset: '40', q: 'italian' })
                 .set('Authorization', auth);
 
-            expect(skipMock).toHaveBeenCalledWith(40);
+            expect(getFacetDataStages(aggregateMock)).toContainEqual({ $skip: 40 });
         });
 
         it('falls back to offset 0 when a negative or invalid offset is provided', async () => {
-            const limitMock = jest.fn().mockReturnValue(mockLean([]));
-            const skipMock = jest.fn().mockReturnValue({ limit: limitMock });
-            (WordsBundle.find as jest.Mock).mockReturnValue({ sort: jest.fn().mockReturnValue({ skip: skipMock }) });
+            const aggregateMock = mockSearchAggregate([], 0);
+            (WordsBundle.aggregate as jest.Mock) = aggregateMock;
 
             await request(app)
                 .get('/words-bundles/search')
                 .query({ offset: '-5', q: 'italian' })
                 .set('Authorization', auth);
 
-            expect(skipMock).toHaveBeenCalledWith(0);
+            expect(getFacetDataStages(aggregateMock)).toContainEqual({ $skip: 0 });
         });
 
         it('filters by mainLang and translationLang when provided', async () => {
-            const findMock = jest.fn().mockReturnValue(mockSortSkipLimitLean([]));
-            (WordsBundle.find as jest.Mock) = findMock;
+            const aggregateMock = mockSearchAggregate([], 0);
+            (WordsBundle.aggregate as jest.Mock) = aggregateMock;
 
             await request(app)
                 .get('/words-bundles/search')
                 .query({ mainLang: 'it', q: 'italian', translationLang: 'pl' })
                 .set('Authorization', auth);
 
-            expect(findMock).toHaveBeenCalledWith({
+            expect(getMatchStage(aggregateMock)).toEqual({
                 $and: [{ searchText: /italian/i }],
                 $or: [{ visibility: 'public' }, { _id: { $in: [] } }],
                 mainLang: 'it',
+                removed: false,
                 translationLang: 'pl',
             });
         });
 
         it('ignores invalid mainLang and translationLang values', async () => {
-            const findMock = jest.fn().mockReturnValue(mockSortSkipLimitLean([]));
-            (WordsBundle.find as jest.Mock) = findMock;
+            const aggregateMock = mockSearchAggregate([], 0);
+            (WordsBundle.aggregate as jest.Mock) = aggregateMock;
 
             await request(app)
                 .get('/words-bundles/search')
                 .query({ mainLang: 'xx', q: 'italian', translationLang: 'yy' })
                 .set('Authorization', auth);
 
-            expect(findMock).toHaveBeenCalledWith({
+            expect(getMatchStage(aggregateMock)).toEqual({
                 $and: [{ searchText: /italian/i }],
                 $or: [{ visibility: 'public' }, { _id: { $in: [] } }],
+                removed: false,
             });
         });
     });

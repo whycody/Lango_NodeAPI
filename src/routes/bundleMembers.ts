@@ -4,6 +4,7 @@ import { Types } from 'mongoose';
 import authenticate from '../middleware/auth';
 import BundleMember from '../models/core/BundleMember';
 import WordsBundle from '../models/core/WordsBundle';
+import { withIdField } from '../services/utils/withIdField';
 
 const router = Router();
 
@@ -24,13 +25,7 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
 
     const members = await BundleMember.find(query).lean();
 
-    const mappedMembers = members.map(member => ({
-        ...member,
-        _id: undefined,
-        id: member._id,
-    }));
-
-    res.json(mappedMembers);
+    res.json(members.map(withIdField));
 });
 
 router.get('/bundle/:bundleId', authenticate, async (req: Request, res: Response) => {
@@ -65,9 +60,7 @@ router.get('/bundle/:bundleId', authenticate, async (req: Request, res: Response
         };
 
         return {
-            ...member,
-            _id: undefined,
-            id: member._id,
+            ...withIdField(member),
             userId: user._id,
             userSummary: { id: user._id, name: user.name, picture: user.picture },
         };
@@ -171,16 +164,10 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
         }
     }
 
-    const mappedUnauthorizedMembers = unauthorizedMembers.map(member => ({
-        ...member,
-        _id: undefined,
-        id: member._id,
-    }));
-
     res.json({
         rejectedMemberIds,
         syncedMembers,
-        unauthorizedMembers: mappedUnauthorizedMembers,
+        unauthorizedMembers: unauthorizedMembers.map(withIdField),
     });
 });
 

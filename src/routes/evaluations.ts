@@ -2,6 +2,7 @@ import { Request, Response, Router } from 'express';
 
 import authenticate from '../middleware/auth';
 import Evaluation from '../models/core/Evaluation';
+import { withIdField } from '../services/utils/withIdField';
 
 const router = Router();
 
@@ -19,13 +20,7 @@ router.get('/evaluations', authenticate, async (req: Request, res: Response) => 
 
     const evaluations = await Evaluation.find(query).lean();
 
-    const mappedEvaluations = evaluations.map(evaluation => ({
-        ...evaluation,
-        _id: undefined,
-        id: evaluation._id,
-    }));
-
-    res.json(mappedEvaluations);
+    res.json(evaluations.map(withIdField));
 });
 
 router.post('/evaluations/sync', authenticate, async (req: Request, res: Response) => {

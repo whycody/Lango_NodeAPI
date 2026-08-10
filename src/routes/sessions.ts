@@ -3,6 +3,7 @@ import { Request, Response, Router } from 'express';
 import authenticate from '../middleware/auth';
 import Session from '../models/core/Session';
 import { updateUserData } from '../services/utils/updateUserData';
+import { withIdField } from '../services/utils/withIdField';
 
 const router = Router();
 
@@ -20,13 +21,7 @@ router.get('/sessions', authenticate, async (req: Request, res: Response) => {
 
     const sessions = await Session.find(query).lean();
 
-    const mappedSessions = sessions.map(session => ({
-        ...session,
-        _id: undefined,
-        id: session._id,
-    }));
-
-    res.json(mappedSessions);
+    res.json(sessions.map(withIdField));
 });
 
 router.post('/sessions/sync', authenticate, async (req: Request, res: Response) => {

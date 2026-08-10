@@ -9,13 +9,13 @@ import BundleMember from '../models/core/BundleMember';
 import User from '../models/core/User';
 import Word from '../models/core/Word';
 import WordsBundle from '../models/core/WordsBundle';
-import { stripDiacritics } from '../services/utils/stripDiacritics';
+import { parsePagination } from '../services/utils/pagination';
+import { buildSearchTextFilters } from '../services/utils/searchTextFilters';
+import { withIdField } from '../services/utils/withIdField';
 
 const languageCodes: string[] = Object.values(LanguageCode);
 const isLanguageCode = (value: unknown): value is LanguageCodeValue =>
     typeof value === 'string' && languageCodes.includes(value);
-
-const normalizeForSearch = (text: string): string => stripDiacritics(text).toLowerCase();
 
 const router = Router();
 
@@ -55,13 +55,7 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
 
     const bundles = await WordsBundle.find(query).lean();
 
-    const mappedBundles = bundles.map(bundle => ({
-        ...bundle,
-        _id: undefined,
-        id: bundle._id,
-    }));
-
-    res.json(mappedBundles);
+    res.json(bundles.map(withIdField));
 });
 
 router.get('/by-ids', authenticate, async (req: Request, res: Response) => {
@@ -82,13 +76,7 @@ router.get('/by-ids', authenticate, async (req: Request, res: Response) => {
 
     const bundles = await WordsBundle.find({ _id: { $in: memberBundleIds } }).lean();
 
-    const mappedBundles = bundles.map(bundle => ({
-        ...bundle,
-        _id: undefined,
-        id: bundle._id,
-    }));
-
-    res.json(mappedBundles);
+    res.json(bundles.map(withIdField));
 });
 
 router.get('/search', authenticate, async (req: Request, res: Response) => {
@@ -101,19 +89,9 @@ router.get('/search', authenticate, async (req: Request, res: Response) => {
         return res.json({ data: [], total: 0 });
     }
 
-    const parsedLimit = Number(limit);
-    const resultLimit =
-        Number.isInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 50) : 20;
+    const { resultLimit, resultOffset } = parsePagination(limit, offset);
 
-    const parsedOffset = Number(offset);
-    const resultOffset = Number.isInteger(parsedOffset) && parsedOffset > 0 ? parsedOffset : 0;
-
-    const searchWords = normalizeForSearch(searchTerm)
-        .split(/\s+/)
-        .filter(Boolean)
-        .map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-
-    const wordFilters = searchWords.map(word => ({ searchText: new RegExp(word, 'i') }));
+    const wordFilters = buildSearchTextFilters(searchTerm);
 
     const memberBundleIds = await BundleMember.find({ removed: false, userId }).distinct(
         'bundleId',
@@ -139,15 +117,50 @@ router.get('/search', authenticate, async (req: Request, res: Response) => {
         query.translationLang = translationLang;
     }
 
-    const [bundles, total] = await Promise.all([
-        WordsBundle.find(query)
-            .sort({ createdAt: -1 })
-            .skip(resultOffset)
-            .limit(resultLimit)
-            .lean(),
-        WordsBundle.countDocuments(query),
+    const nonEmptyMatchStage = {
+        $lookup: {
+            as: 'firstWord',
+            from: Word.collection.name,
+            let: { bundleId: '$_id' },
+            pipeline: [
+                {
+                    $match: {
+                        $expr: {
+                            $and: [
+                                { $eq: ['$bundleId', '$$bundleId'] },
+                                { $eq: ['$removed', false] },
+                            ],
+                        },
+                    },
+                },
+                { $limit: 1 },
+                { $project: { _id: 1 } },
+            ],
+        },
+    };
+
+    const [facetResult] = await WordsBundle.aggregate<{
+        data: Array<{ _id: Types.ObjectId; ownerId: Types.ObjectId; [key: string]: unknown }>;
+        totalCount: Array<{ total: number }>;
+    }>([
+        { $match: query },
+        nonEmptyMatchStage,
+        { $match: { firstWord: { $ne: [] } } },
+        { $project: { firstWord: 0 } },
+        {
+            $facet: {
+                data: [
+                    { $sort: { createdAt: -1 } },
+                    { $skip: resultOffset },
+                    { $limit: resultLimit },
+                ],
+                totalCount: [{ $count: 'total' }],
+            },
+        },
     ]);
 
+    const bundles = facetResult?.data ?? [];
+    const total = facetResult?.totalCount[0]?.total ?? 0;
     const ownerIds = [...new Set(bundles.map(bundle => bundle.ownerId.toString()))];
     const bundleIds = bundles.map(bundle => bundle._id);
 
@@ -165,11 +178,9 @@ router.get('/search', authenticate, async (req: Request, res: Response) => {
     );
 
     const mappedBundles = bundles.map(bundle => ({
-        ...bundle,
-        _id: undefined,
+        ...withIdField(bundle),
         creatorName: ownerNameById.get(bundle.ownerId.toString()),
         flashcardsCount: flashcardsCountByBundleId.get(bundle._id.toString()) ?? 0,
-        id: bundle._id,
     }));
 
     res.json({ data: mappedBundles, total });
