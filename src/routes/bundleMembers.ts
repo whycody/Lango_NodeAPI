@@ -148,7 +148,7 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
                     continue;
                 }
 
-                if (!isOwner || member.role === 'owner') {
+                if (!isOwner && member.role !== 'viewer') {
                     member.role = 'viewer';
                 }
             }

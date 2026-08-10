@@ -123,10 +123,12 @@ router.get('/search', authenticate, async (req: Request, res: Response) => {
         $and: Array<{ searchText: RegExp }>;
         $or: Array<{ _id: { $in: unknown[] } } | { visibility: string }>;
         mainLang?: LanguageCodeValue;
+        removed: boolean;
         translationLang?: LanguageCodeValue;
     } = {
         $and: wordFilters,
         $or: [{ visibility: 'public' }, { _id: { $in: memberBundleIds } }],
+        removed: false,
     };
 
     if (isLanguageCode(mainLang)) {
@@ -233,12 +235,17 @@ router.delete('/:id', authenticate, async (req: Request, res: Response) => {
         return res.status(403).json({ message: 'Only the owner can delete the bundle' });
     }
 
+    const now = nowUTC();
+
     await BundleMember.updateMany(
         { bundleId: bundle._id },
-        { $set: { removed: true, updatedAt: nowUTC() } },
+        { $set: { removed: true, updatedAt: now } },
     );
 
+    await Word.updateMany({ bundleId: bundle._id }, { $set: { removed: true, updatedAt: now } });
+
     bundle.removed = true;
+
     await bundle.save();
 
     res.json({ id: bundle._id, removed: true });

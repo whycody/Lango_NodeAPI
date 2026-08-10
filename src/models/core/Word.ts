@@ -4,7 +4,7 @@ import { LanguageCode, LanguageCodeValue } from '../../constants/languageCodes';
 
 interface Word extends Document {
     id: string;
-    userId: string;
+    userId: Types.ObjectId;
     bundleId?: Types.ObjectId | null;
     text: string;
     translation: string;
@@ -32,7 +32,7 @@ const wordSchema = new Schema<Word>(
         translation: { required: true, type: String },
         translationLang: { enum: Object.values(LanguageCode), required: true, type: String },
         updatedAt: { default: Date.now, type: Date },
-        userId: { required: true, type: String },
+        userId: { ref: 'User', required: true, type: Schema.Types.ObjectId },
     },
     {
         timestamps: { createdAt: false, updatedAt: 'updatedAt' },

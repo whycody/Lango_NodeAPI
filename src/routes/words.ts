@@ -96,17 +96,16 @@ router.post('/words/sync', authenticate, async (req: Request, res: Response) => 
                     }
                     continue;
                 }
-            } else if (existingWord && existingWord.userId !== userId) {
+            } else if (existingWord && existingWord.userId.toString() !== userId) {
                 unauthorizedWords.push(existingWord.toObject());
-                continue;
-            } else if (!existingWord && word.userId !== userId) {
-                rejectedWordIds.push(word.id);
                 continue;
             }
 
+            const ownerUserId = existingWord ? existingWord.userId : new Types.ObjectId(userId);
+
             const updatedWord = await Word.findOneAndUpdate(
                 { _id: word.id },
-                { $set: { ...word, updatedAt: nowUTC() } },
+                { $set: { ...word, updatedAt: nowUTC(), userId: ownerUserId } },
                 { new: true, upsert: true },
             );
 
