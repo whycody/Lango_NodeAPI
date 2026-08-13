@@ -62,7 +62,8 @@ router.get('/by-ids', authenticate, async (req: Request, res: Response) => {
     const userId = req.userId ?? '';
     const { ids } = req.query;
 
-    const bundleIds = typeof ids === 'string' ? ids.split(',').filter(Boolean) : [];
+    const bundleIds =
+        typeof ids === 'string' ? ids.split(',').filter(id => Types.ObjectId.isValid(id)) : [];
 
     if (bundleIds.length === 0) {
         return res.json([]);
@@ -74,9 +75,36 @@ router.get('/by-ids', authenticate, async (req: Request, res: Response) => {
         userId,
     }).distinct('bundleId');
 
-    const bundles = await WordsBundle.find({ _id: { $in: memberBundleIds } }).lean();
+    const bundles = await WordsBundle.find({
+        $or: [{ visibility: 'public' }, { _id: { $in: memberBundleIds } }],
+        _id: { $in: bundleIds },
+    }).lean();
 
-    res.json(bundles.map(withIdField));
+    const ownerIds = [...new Set(bundles.map(bundle => bundle.ownerId.toString()))];
+    const bundleObjectIds = bundles.map(bundle => bundle._id);
+
+    const [owners, flashcardsCounts] = await Promise.all([
+        User.find({ _id: { $in: ownerIds } }, { name: 1, picture: 1 }).lean(),
+        Word.aggregate([
+            { $match: { bundleId: { $in: bundleObjectIds }, removed: false } },
+            { $group: { _id: '$bundleId', count: { $sum: 1 } } },
+        ]),
+    ]);
+
+    const ownerNameById = new Map(owners.map(owner => [owner._id.toString(), owner.name]));
+    const ownerPictureById = new Map(owners.map(owner => [owner._id.toString(), owner.picture]));
+    const flashcardsCountByBundleId = new Map(
+        flashcardsCounts.map(entry => [entry._id.toString(), entry.count]),
+    );
+
+    const mappedBundles = bundles.map(bundle => ({
+        ...withIdField(bundle),
+        flashcardsCount: flashcardsCountByBundleId.get(bundle._id.toString()) ?? 0,
+        ownerName: ownerNameById.get(bundle.ownerId.toString()),
+        ownerPicture: ownerPictureById.get(bundle.ownerId.toString()),
+    }));
+
+    res.json(mappedBundles);
 });
 
 router.get('/search', authenticate, async (req: Request, res: Response) => {
@@ -165,7 +193,7 @@ router.get('/search', authenticate, async (req: Request, res: Response) => {
     const bundleIds = bundles.map(bundle => bundle._id);
 
     const [owners, flashcardsCounts] = await Promise.all([
-        User.find({ _id: { $in: ownerIds } }, { name: 1 }).lean(),
+        User.find({ _id: { $in: ownerIds } }, { name: 1, picture: 1 }).lean(),
         Word.aggregate([
             { $match: { bundleId: { $in: bundleIds }, removed: false } },
             { $group: { _id: '$bundleId', count: { $sum: 1 } } },
@@ -173,14 +201,16 @@ router.get('/search', authenticate, async (req: Request, res: Response) => {
     ]);
 
     const ownerNameById = new Map(owners.map(owner => [owner._id.toString(), owner.name]));
+    const ownerPictureById = new Map(owners.map(owner => [owner._id.toString(), owner.picture]));
     const flashcardsCountByBundleId = new Map(
         flashcardsCounts.map(entry => [entry._id.toString(), entry.count]),
     );
 
     const mappedBundles = bundles.map(bundle => ({
         ...withIdField(bundle),
-        creatorName: ownerNameById.get(bundle.ownerId.toString()),
         flashcardsCount: flashcardsCountByBundleId.get(bundle._id.toString()) ?? 0,
+        ownerName: ownerNameById.get(bundle.ownerId.toString()),
+        ownerPicture: ownerPictureById.get(bundle.ownerId.toString()),
     }));
 
     res.json({ data: mappedBundles, total });
@@ -216,7 +246,7 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
                 await BundleMember.updateMany(
                     {
                         bundleId: updatedBundle._id,
-                        joinedViaCodeId: { $exists: false },
+                        joinedViaCodeId: { $eq: null },
                         role: { $ne: 'owner' },
                     },
                     { $set: { removed: true, updatedAt: nowUTC() } },

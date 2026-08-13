@@ -40,6 +40,7 @@ router.get('/words', authenticate, async (req: Request, res: Response) => {
 
         const words = await Word.find({
             bundleId: requestedBundleId,
+            ...(bundleId && { removed: false }),
             ...(sinceFilter && { updatedAt: sinceFilter }),
         }).lean();
 

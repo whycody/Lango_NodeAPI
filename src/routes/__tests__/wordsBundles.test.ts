@@ -78,6 +78,11 @@ describe('WordsBundles Routes', () => {
     });
 
     describe('GET /words-bundles/by-ids', () => {
+        beforeEach(() => {
+            (User.find as jest.Mock).mockReturnValue(mockLean([]));
+            (Word.aggregate as jest.Mock).mockResolvedValue([]);
+        });
+
         it('returns empty array when no ids are provided', async () => {
             const res = await request(app).get('/words-bundles/by-ids').set('Authorization', auth);
 
@@ -90,8 +95,12 @@ describe('WordsBundles Routes', () => {
                 distinct: jest.fn().mockResolvedValue(['bundle1']),
             });
             (WordsBundle.find as jest.Mock).mockReturnValue(
-                mockLean([{ _id: 'bundle1', title: 'Bundle 1' }]),
+                mockLean([{ _id: 'bundle1', ownerId: 'owner1', title: 'Bundle 1' }]),
             );
+            (User.find as jest.Mock).mockReturnValue(
+                mockLean([{ _id: 'owner1', name: 'Jane', picture: 'jane.png' }]),
+            );
+            (Word.aggregate as jest.Mock).mockResolvedValue([{ _id: 'bundle1', count: 2 }]);
 
             const res = await request(app)
                 .get('/words-bundles/by-ids')
@@ -102,7 +111,55 @@ describe('WordsBundles Routes', () => {
                 expect.objectContaining({ bundleId: { $in: ['bundle1', 'bundle2'] } }),
             );
             expect(res.status).toBe(200);
-            expect(res.body).toEqual([{ id: 'bundle1', title: 'Bundle 1' }]);
+            expect(res.body).toEqual([
+                {
+                    flashcardsCount: 2,
+                    id: 'bundle1',
+                    ownerId: 'owner1',
+                    ownerName: 'Jane',
+                    ownerPicture: 'jane.png',
+                    title: 'Bundle 1',
+                },
+            ]);
+        });
+
+        it('returns public bundles even when the user is not a member', async () => {
+            (BundleMember.find as jest.Mock).mockReturnValue({
+                distinct: jest.fn().mockResolvedValue([]),
+            });
+            const findMock = jest.fn().mockReturnValue(
+                mockLean([
+                    {
+                        _id: 'bundle1',
+                        ownerId: 'owner1',
+                        title: 'Public bundle',
+                        visibility: 'public',
+                    },
+                ]),
+            );
+            (WordsBundle.find as jest.Mock) = findMock;
+
+            const res = await request(app)
+                .get('/words-bundles/by-ids')
+                .query({ ids: 'bundle1' })
+                .set('Authorization', auth);
+
+            expect(findMock).toHaveBeenCalledWith({
+                $or: [{ visibility: 'public' }, { _id: { $in: [] } }],
+                _id: { $in: ['bundle1'] },
+            });
+            expect(res.status).toBe(200);
+            expect(res.body).toEqual([
+                {
+                    flashcardsCount: 0,
+                    id: 'bundle1',
+                    ownerId: 'owner1',
+                    ownerName: undefined,
+                    ownerPicture: undefined,
+                    title: 'Public bundle',
+                    visibility: 'public',
+                },
+            ]);
         });
     });
 
@@ -160,7 +217,7 @@ describe('WordsBundles Routes', () => {
             expect(res.body).toEqual({
                 data: [
                     {
-                        creatorName: 'Jane',
+                        ownerName: 'Jane',
                         flashcardsCount: 3,
                         id: 'bundle1',
                         ownerId: 'owner1',
@@ -201,7 +258,7 @@ describe('WordsBundles Routes', () => {
             expect(res.body).toEqual({
                 data: [
                     {
-                        creatorName: 'Jane',
+                        ownerName: 'Jane',
                         flashcardsCount: 0,
                         id: 'bundle1',
                         ownerId: 'owner1',
@@ -280,7 +337,7 @@ describe('WordsBundles Routes', () => {
             expect(res.body).toEqual({
                 data: [
                     {
-                        creatorName: undefined,
+                        ownerName: undefined,
                         flashcardsCount: 0,
                         id: 'bundle1',
                         ownerId: 'owner1',
@@ -338,7 +395,7 @@ describe('WordsBundles Routes', () => {
             expect(res.body).toEqual({
                 data: [
                     {
-                        creatorName: undefined,
+                        ownerName: undefined,
                         flashcardsCount: 0,
                         id: 'bundle1',
                         ownerId: 'owner1',
