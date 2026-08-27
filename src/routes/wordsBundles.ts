@@ -58,8 +58,7 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
     res.json(bundles.map(withIdField));
 });
 
-router.get('/by-ids', authenticate, async (req: Request, res: Response) => {
-    const userId = req.userId ?? '';
+router.get('/by-ids', async (req: Request, res: Response) => {
     const { ids } = req.query;
 
     const bundleIds =
@@ -69,15 +68,9 @@ router.get('/by-ids', authenticate, async (req: Request, res: Response) => {
         return res.json([]);
     }
 
-    const memberBundleIds = await BundleMember.find({
-        bundleId: { $in: bundleIds },
-        removed: false,
-        userId,
-    }).distinct('bundleId');
-
     const bundles = await WordsBundle.find({
-        $or: [{ visibility: 'public' }, { _id: { $in: memberBundleIds } }],
         _id: { $in: bundleIds },
+        removed: false,
     }).lean();
 
     const ownerIds = [...new Set(bundles.map(bundle => bundle.ownerId.toString()))];
@@ -357,11 +350,16 @@ router.post('/join/:code', authenticate, async (req: Request, res: Response) => 
         userId,
     });
 
+    const bundle = await WordsBundle.findById(joinCode.bundleId).lean();
+
+    if (!bundle) {
+        return res.status(404).json({ message: 'Bundle no longer exists' });
+    }
+
     if (existingMember && !existingMember.removed) {
         return res.json({
-            bundleId: existingMember.bundleId,
-            id: existingMember._id,
-            role: existingMember.role,
+            bundle: withIdField(bundle),
+            member: withIdField(existingMember.toObject()),
         });
     }
 
@@ -372,9 +370,8 @@ router.post('/join/:code', authenticate, async (req: Request, res: Response) => 
         await existingMember.save();
 
         return res.json({
-            bundleId: existingMember.bundleId,
-            id: existingMember._id,
-            role: existingMember.role,
+            bundle: withIdField(bundle),
+            member: withIdField(existingMember.toObject()),
         });
     }
 
@@ -386,9 +383,8 @@ router.post('/join/:code', authenticate, async (req: Request, res: Response) => 
     });
 
     res.status(201).json({
-        bundleId: member.bundleId,
-        id: member._id,
-        role: member.role,
+        bundle: withIdField(bundle),
+        member: withIdField(member.toObject()),
     });
 });
 

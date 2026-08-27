@@ -791,6 +791,22 @@ describe('WordsBundles Routes', () => {
             expect(res.status).toBe(404);
         });
 
+        it('returns 404 when the joined bundle no longer exists', async () => {
+            (BundleJoinCode.findOne as jest.Mock).mockResolvedValue({
+                bundleId: 'bundle1',
+                expireAt: new Date('2030-01-01T00:00:00.000Z'),
+                role: 'editor',
+            });
+            (BundleMember.findOne as jest.Mock).mockResolvedValue(null);
+            (WordsBundle.findById as jest.Mock).mockReturnValue(mockLean(null));
+
+            const res = await request(app)
+                .post('/words-bundles/join/ABCDEF')
+                .set('Authorization', auth);
+
+            expect(res.status).toBe(404);
+        });
+
         it('returns existing membership when user already joined', async () => {
             (BundleJoinCode.findOne as jest.Mock).mockResolvedValue({
                 bundleId: 'bundle1',
@@ -802,14 +818,23 @@ describe('WordsBundles Routes', () => {
                 bundleId: 'bundle1',
                 removed: false,
                 role: 'viewer',
+                toObject: function toObject() {
+                    return { ...this, toObject: undefined };
+                },
             });
+            (WordsBundle.findById as jest.Mock).mockReturnValue(
+                mockLean({ _id: 'bundle1', title: 'Bundle 1' }),
+            );
 
             const res = await request(app)
                 .post('/words-bundles/join/ABCDEF')
                 .set('Authorization', auth);
 
             expect(res.status).toBe(200);
-            expect(res.body).toEqual({ bundleId: 'bundle1', id: 'member1', role: 'viewer' });
+            expect(res.body).toEqual({
+                bundle: { id: 'bundle1', title: 'Bundle 1' },
+                member: { bundleId: 'bundle1', id: 'member1', removed: false, role: 'viewer' },
+            });
         });
 
         it('reactivates a removed membership using the new join code role', async () => {
@@ -820,6 +845,9 @@ describe('WordsBundles Routes', () => {
                 removed: true,
                 role: 'viewer',
                 save: jest.fn().mockResolvedValue(undefined),
+                toObject: function toObject() {
+                    return { ...this, save: undefined, toObject: undefined };
+                },
             };
             (BundleJoinCode.findOne as jest.Mock).mockResolvedValue({
                 _id: 'code1',
@@ -828,6 +856,9 @@ describe('WordsBundles Routes', () => {
                 role: 'editor',
             });
             (BundleMember.findOne as jest.Mock).mockResolvedValue(existingMember);
+            (WordsBundle.findById as jest.Mock).mockReturnValue(
+                mockLean({ _id: 'bundle1', title: 'Bundle 1' }),
+            );
 
             const res = await request(app)
                 .post('/words-bundles/join/ABCDEF')
@@ -837,7 +868,16 @@ describe('WordsBundles Routes', () => {
             expect(existingMember.removed).toBe(false);
             expect(existingMember.role).toBe('editor');
             expect(existingMember.save).toHaveBeenCalled();
-            expect(res.body).toEqual({ bundleId: 'bundle1', id: 'member1', role: 'editor' });
+            expect(res.body).toEqual({
+                bundle: { id: 'bundle1', title: 'Bundle 1' },
+                member: {
+                    bundleId: 'bundle1',
+                    id: 'member1',
+                    joinedViaCodeId: 'code1',
+                    removed: false,
+                    role: 'editor',
+                },
+            });
         });
 
         it('creates a new membership for a first-time joiner', async () => {
@@ -852,14 +892,23 @@ describe('WordsBundles Routes', () => {
                 _id: 'member2',
                 bundleId: 'bundle1',
                 role: 'viewer',
+                toObject: function toObject() {
+                    return { ...this, toObject: undefined };
+                },
             });
+            (WordsBundle.findById as jest.Mock).mockReturnValue(
+                mockLean({ _id: 'bundle1', title: 'Bundle 1' }),
+            );
 
             const res = await request(app)
                 .post('/words-bundles/join/ABCDEF')
                 .set('Authorization', auth);
 
             expect(res.status).toBe(201);
-            expect(res.body).toEqual({ bundleId: 'bundle1', id: 'member2', role: 'viewer' });
+            expect(res.body).toEqual({
+                bundle: { id: 'bundle1', title: 'Bundle 1' },
+                member: { bundleId: 'bundle1', id: 'member2', role: 'viewer' },
+            });
         });
     });
 });
