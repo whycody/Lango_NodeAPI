@@ -7,7 +7,7 @@ import { updateUserData } from '../services/utils/updateUserData';
 
 const router = express.Router();
 
-router.get('/users', authenticate, async (req: Request, res: Response) => {
+router.get('/', authenticate, async (req: Request, res: Response) => {
     const userId = req.userId;
 
     if (!userId) {

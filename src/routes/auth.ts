@@ -145,7 +145,7 @@ router.post('/login/apple', async (req: Request, res: Response) => {
     }
 });
 
-router.post('/auth/refresh', async (req: Request<{}, {}, RefreshTokenRequest>, res: Response) => {
+router.post('/refresh', async (req: Request<{}, {}, RefreshTokenRequest>, res: Response) => {
     const { deviceId, refreshToken } = req.body;
 
     try {
@@ -175,7 +175,7 @@ router.post('/auth/refresh', async (req: Request<{}, {}, RefreshTokenRequest>, r
 });
 
 router.post(
-    '/auth/logout',
+    '/logout',
     authenticate,
     async (req: Request<{}, {}, LogoutRequest>, res: Response) => {
         try {
@@ -193,7 +193,7 @@ router.post(
     },
 );
 
-router.delete('/auth/account', authenticate, async (req: Request, res: Response) => {
+router.delete('/account', authenticate, async (req: Request, res: Response) => {
     const userId = req.userId!;
 
     try {

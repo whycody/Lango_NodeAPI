@@ -9,7 +9,7 @@ const router = Router();
 
 const nowUTC = () => new Date().toISOString();
 
-router.get('/sessions', authenticate, async (req: Request, res: Response) => {
+router.get('/', authenticate, async (req: Request, res: Response) => {
     const { since } = req.query;
     const userId = req.userId ?? '';
 
@@ -24,7 +24,7 @@ router.get('/sessions', authenticate, async (req: Request, res: Response) => {
     res.json(sessions.map(withIdField));
 });
 
-router.post('/sessions/sync', authenticate, async (req: Request, res: Response) => {
+router.post('/sync', authenticate, async (req: Request, res: Response) => {
     const userId = req.userId ?? '';
     const clientSessions = req.body;
     const synced = [];

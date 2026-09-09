@@ -8,7 +8,7 @@ const router = Router();
 
 const nowUTC = () => new Date().toISOString();
 
-router.get('/evaluations', authenticate, async (req: Request, res: Response) => {
+router.get('/', authenticate, async (req: Request, res: Response) => {
     const { since } = req.query;
     const userId = req.userId ?? '';
 
@@ -23,7 +23,7 @@ router.get('/evaluations', authenticate, async (req: Request, res: Response) => 
     res.json(evaluations.map(withIdField));
 });
 
-router.post('/evaluations/sync', authenticate, async (req: Request, res: Response) => {
+router.post('/sync', authenticate, async (req: Request, res: Response) => {
     const userId = req.userId ?? '';
     const clientEvaluations = req.body;
     const synced = [];

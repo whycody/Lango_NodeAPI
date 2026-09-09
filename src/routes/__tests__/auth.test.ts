@@ -104,7 +104,7 @@ describe('Auth Routes', () => {
             (User.findById as jest.Mock).mockResolvedValue(mockUser);
 
             const res = await request(app)
-                .post('/auth/auth/refresh')
+                .post('/auth/refresh')
                 .send({ refreshToken: 'valid', deviceId: 'device1' });
             expect(res.status).toBe(200);
             expect(res.body).toEqual({
@@ -118,7 +118,7 @@ describe('Auth Routes', () => {
                 throw new Error();
             });
             const res = await request(app)
-                .post('/auth/auth/refresh')
+                .post('/auth/refresh')
                 .send({ refreshToken: 'bad', deviceId: 'device1' });
             expect(res.status).toBe(401);
         });
@@ -133,7 +133,7 @@ describe('Auth Routes', () => {
             const token = 'Bearer mocked-access-token';
 
             const res = await request(app)
-                .post('/auth/auth/logout')
+                .post('/auth/logout')
                 .set('Authorization', token)
                 .send({ deviceId: 'device1' });
 
