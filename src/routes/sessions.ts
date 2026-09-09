@@ -27,7 +27,9 @@ router.get('/sessions', authenticate, async (req: Request, res: Response) => {
 router.post('/sessions/sync', authenticate, async (req: Request, res: Response) => {
     const userId = req.userId ?? '';
     const clientSessions = req.body;
-    const syncedSessions = [];
+    const synced = [];
+    const unauthorized: unknown[] = [];
+    const rejectedIds: string[] = [];
 
     for (const session of clientSessions) {
         try {
@@ -46,7 +48,7 @@ router.post('/sessions/sync', authenticate, async (req: Request, res: Response) 
                 { new: true, upsert: true },
             );
 
-            syncedSessions.push({ id: updatedSession._id, updatedAt: updatedSession.updatedAt });
+            synced.push({ id: updatedSession._id, updatedAt: updatedSession.updatedAt });
         } catch (error) {
             console.error(`Failed to sync session ${session.id}:`, error);
         }
@@ -54,7 +56,7 @@ router.post('/sessions/sync', authenticate, async (req: Request, res: Response) 
 
     await updateUserData(userId);
 
-    res.json(syncedSessions);
+    res.json({ rejectedIds, synced, unauthorized });
 });
 
 export default router;

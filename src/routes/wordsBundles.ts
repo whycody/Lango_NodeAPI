@@ -212,7 +212,9 @@ router.get('/search', authenticate, async (req: Request, res: Response) => {
 router.post('/sync', authenticate, async (req: Request, res: Response) => {
     const userId = req.userId;
     const clientBundles = req.body;
-    const syncedBundles = [];
+    const synced = [];
+    const unauthorized: unknown[] = [];
+    const rejectedIds: string[] = [];
 
     for (const bundle of clientBundles) {
         try {
@@ -246,13 +248,13 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
                 );
             }
 
-            syncedBundles.push({ id: updatedBundle._id, updatedAt: updatedBundle.updatedAt });
+            synced.push({ id: updatedBundle._id, updatedAt: updatedBundle.updatedAt });
         } catch (error) {
             console.error(`Failed to sync words bundle ${bundle.id}:`, error);
         }
     }
 
-    res.json(syncedBundles);
+    res.json({ rejectedIds, synced, unauthorized });
 });
 
 router.delete('/:id', authenticate, async (req: Request, res: Response) => {
@@ -338,11 +340,18 @@ router.post('/:id/generate-invitation-code', authenticate, async (req: Request, 
 router.post('/join/:code', authenticate, async (req: Request, res: Response) => {
     const userId = req.userId ?? '';
     const { code } = req.params;
+    const { bundleId } = req.query;
+
+    console.log(bundleId, code);
 
     const joinCode = await BundleJoinCode.findOne({ code });
 
     if (!joinCode || joinCode.expireAt < new Date()) {
         return res.status(404).json({ message: 'Invalid or expired join code' });
+    }
+
+    if (typeof bundleId === 'string' && joinCode.bundleId.toString() !== bundleId) {
+        return res.status(400).json({ message: 'Join code does not match the specified bundle' });
     }
 
     const existingMember = await BundleMember.findOne({
@@ -357,10 +366,7 @@ router.post('/join/:code', authenticate, async (req: Request, res: Response) => 
     }
 
     if (existingMember && !existingMember.removed) {
-        return res.json({
-            bundle: withIdField(bundle),
-            member: withIdField(existingMember.toObject()),
-        });
+        return res.status(409).json({ message: 'Already a member of this bundle' });
     }
 
     if (existingMember && existingMember.removed) {

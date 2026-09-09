@@ -26,7 +26,9 @@ router.get('/evaluations', authenticate, async (req: Request, res: Response) => 
 router.post('/evaluations/sync', authenticate, async (req: Request, res: Response) => {
     const userId = req.userId ?? '';
     const clientEvaluations = req.body;
-    const syncedEvaluations = [];
+    const synced = [];
+    const unauthorized: unknown[] = [];
+    const rejectedIds: string[] = [];
 
     for (const evaluation of clientEvaluations) {
         try {
@@ -45,7 +47,7 @@ router.post('/evaluations/sync', authenticate, async (req: Request, res: Respons
                 { new: true, upsert: true },
             );
 
-            syncedEvaluations.push({
+            synced.push({
                 id: updatedEvaluation._id,
                 updatedAt: updatedEvaluation.updatedAt,
             });
@@ -54,7 +56,7 @@ router.post('/evaluations/sync', authenticate, async (req: Request, res: Respons
         }
     }
 
-    res.json(syncedEvaluations);
+    res.json({ rejectedIds, synced, unauthorized });
 });
 
 export default router;

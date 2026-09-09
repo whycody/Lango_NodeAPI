@@ -540,7 +540,11 @@ describe('WordsBundles Routes', () => {
                 ]);
 
             expect(res.status).toBe(200);
-            expect(res.body).toEqual([{ id: 'bundle1', updatedAt: '2026-01-01T00:00:00.000Z' }]);
+            expect(res.body).toEqual({
+                rejectedIds: [],
+                synced: [{ id: 'bundle1', updatedAt: '2026-01-01T00:00:00.000Z' }],
+                unauthorized: [],
+            });
         });
 
         it('passes title and description through to $set unchanged, leaving searchText to the model hook', async () => {
@@ -592,7 +596,7 @@ describe('WordsBundles Routes', () => {
                 ]);
 
             expect(res.status).toBe(200);
-            expect(res.body).toEqual([]);
+            expect(res.body).toEqual({ rejectedIds: [], synced: [], unauthorized: [] });
             expect(WordsBundle.findOneAndUpdate).not.toHaveBeenCalled();
         });
 
@@ -642,7 +646,7 @@ describe('WordsBundles Routes', () => {
                 ]);
 
             expect(res.status).toBe(200);
-            expect(res.body).toEqual([]);
+            expect(res.body).toEqual({ rejectedIds: [], synced: [], unauthorized: [] });
         });
     });
 

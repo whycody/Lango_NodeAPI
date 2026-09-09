@@ -72,9 +72,9 @@ router.get('/bundle/:bundleId', authenticate, async (req: Request, res: Response
 router.post('/sync', authenticate, async (req: Request, res: Response) => {
     const userId = req.userId;
     const clientMembers = req.body;
-    const syncedMembers = [];
-    const unauthorizedMembers = [];
-    const rejectedMemberIds = [];
+    const synced = [];
+    const unauthorized = [];
+    const rejectedIds = [];
 
     for (const member of clientMembers) {
         try {
@@ -91,9 +91,9 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
 
             if (!bundle) {
                 if (existingMember) {
-                    unauthorizedMembers.push(existingMember.toObject());
+                    unauthorized.push(existingMember.toObject());
                 } else {
-                    rejectedMemberIds.push(member.id);
+                    rejectedIds.push(member.id);
                 }
                 continue;
             }
@@ -103,21 +103,21 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
 
             if (!isOwner && targetUserId !== userId) {
                 if (existingMember) {
-                    unauthorizedMembers.push(existingMember.toObject());
+                    unauthorized.push(existingMember.toObject());
                 } else {
-                    rejectedMemberIds.push(member.id);
+                    rejectedIds.push(member.id);
                 }
                 continue;
             }
 
             if (existingMember) {
                 if (existingMember.role === 'owner' && targetUserId !== userId) {
-                    unauthorizedMembers.push(existingMember.toObject());
+                    unauthorized.push(existingMember.toObject());
                     continue;
                 }
 
                 if (member.role !== existingMember.role && (!isOwner || member.role === 'owner')) {
-                    unauthorizedMembers.push(existingMember.toObject());
+                    unauthorized.push(existingMember.toObject());
                     continue;
                 }
 
@@ -127,7 +127,7 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
                     !isOwner &&
                     bundle.visibility !== 'public'
                 ) {
-                    unauthorizedMembers.push(existingMember.toObject());
+                    unauthorized.push(existingMember.toObject());
                     continue;
                 }
             } else {
@@ -137,7 +137,7 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
                 });
 
                 if (duplicateMember) {
-                    rejectedMemberIds.push(member.id);
+                    rejectedIds.push(member.id);
                     continue;
                 }
 
@@ -158,16 +158,16 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
                 { new: true, upsert: true },
             );
 
-            syncedMembers.push({ id: updatedMember._id, updatedAt: updatedMember.updatedAt });
+            synced.push({ id: updatedMember._id, updatedAt: updatedMember.updatedAt });
         } catch (error) {
             console.error(`Failed to sync bundle member ${member.id}:`, error);
         }
     }
 
     res.json({
-        rejectedMemberIds,
-        syncedMembers,
-        unauthorizedMembers: unauthorizedMembers.map(withIdField),
+        rejectedIds,
+        synced,
+        unauthorized: unauthorized.map(withIdField),
     });
 });
 

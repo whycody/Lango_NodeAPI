@@ -147,11 +147,11 @@ describe('Words Routes', () => {
                 ]);
 
             expect(res.status).toBe(200);
-            expect(res.body.syncedWords).toEqual([
+            expect(res.body.synced).toEqual([
                 { id: 'word1', updatedAt: '2026-01-01T00:00:00.000Z' },
             ]);
-            expect(res.body.rejectedWordIds).toEqual([]);
-            expect(res.body.unauthorizedWords).toEqual([]);
+            expect(res.body.rejectedIds).toEqual([]);
+            expect(res.body.unauthorized).toEqual([]);
         });
 
         it('skips word sync when local update is older than existing', async () => {
@@ -172,7 +172,7 @@ describe('Words Routes', () => {
                 ]);
 
             expect(res.status).toBe(200);
-            expect(res.body.syncedWords).toEqual([]);
+            expect(res.body.synced).toEqual([]);
             expect(Word.findOneAndUpdate).not.toHaveBeenCalled();
         });
 
@@ -192,7 +192,7 @@ describe('Words Routes', () => {
                 ]);
 
             expect(res.status).toBe(200);
-            expect(res.body.rejectedWordIds).toEqual(['word1']);
+            expect(res.body.rejectedIds).toEqual(['word1']);
             expect(Word.findOneAndUpdate).not.toHaveBeenCalled();
         });
 
@@ -218,7 +218,7 @@ describe('Words Routes', () => {
                 ]);
 
             expect(res.status).toBe(200);
-            expect(res.body.unauthorizedWords).toEqual([
+            expect(res.body.unauthorized).toEqual([
                 { id: 'word1', userId: 'anotherUser', word: 'casa' },
             ]);
         });
@@ -244,7 +244,7 @@ describe('Words Routes', () => {
                 ]);
 
             expect(res.status).toBe(200);
-            expect(res.body.syncedWords).toEqual([
+            expect(res.body.synced).toEqual([
                 { id: 'word1', updatedAt: '2026-01-01T00:00:00.000Z' },
             ]);
         });
@@ -266,7 +266,7 @@ describe('Words Routes', () => {
                 ]);
 
             expect(res.status).toBe(200);
-            expect(res.body.rejectedWordIds).toEqual(['word1']);
+            expect(res.body.rejectedIds).toEqual(['word1']);
             expect(Word.findOneAndUpdate).not.toHaveBeenCalled();
         });
 
@@ -293,7 +293,7 @@ describe('Words Routes', () => {
                 ]);
 
             expect(res.status).toBe(200);
-            expect(res.body.unauthorizedWords).toEqual([
+            expect(res.body.unauthorized).toEqual([
                 { bundleId: 'bundle1', id: 'word1', word: 'casa' },
             ]);
         });
@@ -314,8 +314,8 @@ describe('Words Routes', () => {
                 ]);
 
             expect(res.status).toBe(200);
-            expect(res.body.syncedWords).toEqual([]);
-            expect(res.body.rejectedWordIds).toEqual([]);
+            expect(res.body.synced).toEqual([]);
+            expect(res.body.rejectedIds).toEqual([]);
         });
     });
 });

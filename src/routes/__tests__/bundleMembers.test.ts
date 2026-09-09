@@ -177,11 +177,11 @@ describe('BundleMembers Routes', () => {
                 ]);
 
             expect(res.status).toBe(200);
-            expect(res.body.syncedMembers).toEqual([
+            expect(res.body.synced).toEqual([
                 { id: 'member1', updatedAt: '2026-01-01T00:00:00.000Z' },
             ]);
-            expect(res.body.rejectedMemberIds).toEqual([]);
-            expect(res.body.unauthorizedMembers).toEqual([]);
+            expect(res.body.rejectedIds).toEqual([]);
+            expect(res.body.unauthorized).toEqual([]);
         });
 
         it('skips member sync when local update is older than existing', async () => {
@@ -203,7 +203,7 @@ describe('BundleMembers Routes', () => {
                 ]);
 
             expect(res.status).toBe(200);
-            expect(res.body.syncedMembers).toEqual([]);
+            expect(res.body.synced).toEqual([]);
         });
 
         it('rejects the member when the bundle no longer exists and there is no existing member', async () => {
@@ -224,7 +224,7 @@ describe('BundleMembers Routes', () => {
                 ]);
 
             expect(res.status).toBe(200);
-            expect(res.body.rejectedMemberIds).toEqual(['member1']);
+            expect(res.body.rejectedIds).toEqual(['member1']);
         });
 
         it('flags an existing member as unauthorized when the bundle no longer exists', async () => {
@@ -250,7 +250,7 @@ describe('BundleMembers Routes', () => {
                 ]);
 
             expect(res.status).toBe(200);
-            expect(res.body.unauthorizedMembers).toEqual([{ bundleId: 'bundle1', id: 'member1' }]);
+            expect(res.body.unauthorized).toEqual([{ bundleId: 'bundle1', id: 'member1' }]);
         });
 
         it('rejects non-owner attempts to modify another user membership', async () => {
@@ -274,7 +274,7 @@ describe('BundleMembers Routes', () => {
                 ]);
 
             expect(res.status).toBe(200);
-            expect(res.body.rejectedMemberIds).toEqual(['member1']);
+            expect(res.body.rejectedIds).toEqual(['member1']);
         });
 
         it('rejects duplicate membership creation for the same bundle and user', async () => {
@@ -300,7 +300,7 @@ describe('BundleMembers Routes', () => {
                 ]);
 
             expect(res.status).toBe(200);
-            expect(res.body.rejectedMemberIds).toEqual(['member1']);
+            expect(res.body.rejectedIds).toEqual(['member1']);
         });
 
         it('continues processing when an individual member sync fails', async () => {
@@ -320,8 +320,8 @@ describe('BundleMembers Routes', () => {
                 ]);
 
             expect(res.status).toBe(200);
-            expect(res.body.syncedMembers).toEqual([]);
-            expect(res.body.rejectedMemberIds).toEqual([]);
+            expect(res.body.synced).toEqual([]);
+            expect(res.body.rejectedIds).toEqual([]);
         });
     });
 });

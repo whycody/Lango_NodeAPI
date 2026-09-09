@@ -63,9 +63,9 @@ router.get('/words', authenticate, async (req: Request, res: Response) => {
 router.post('/words/sync', authenticate, async (req: Request, res: Response) => {
     const userId = req.userId;
     const clientWords = req.body;
-    const syncedWords = [];
-    const unauthorizedWords = [];
-    const rejectedWordIds = [];
+    const synced = [];
+    const unauthorized = [];
+    const rejectedIds = [];
 
     for (const word of clientWords) {
         try {
@@ -90,14 +90,14 @@ router.post('/words/sync', authenticate, async (req: Request, res: Response) => 
 
                 if (!membership) {
                     if (existingWord) {
-                        unauthorizedWords.push(existingWord.toObject());
+                        unauthorized.push(existingWord.toObject());
                     } else {
-                        rejectedWordIds.push(word.id);
+                        rejectedIds.push(word.id);
                     }
                     continue;
                 }
             } else if (existingWord && existingWord.userId.toString() !== userId) {
-                unauthorizedWords.push(existingWord.toObject());
+                unauthorized.push(existingWord.toObject());
                 continue;
             }
 
@@ -109,16 +109,16 @@ router.post('/words/sync', authenticate, async (req: Request, res: Response) => 
                 { new: true, upsert: true },
             );
 
-            syncedWords.push({ id: updatedWord._id, updatedAt: updatedWord.updatedAt });
+            synced.push({ id: updatedWord._id, updatedAt: updatedWord.updatedAt });
         } catch (error) {
             console.error(`Failed to sync word ${word.id}:`, error);
         }
     }
 
     res.json({
-        rejectedWordIds,
-        syncedWords,
-        unauthorizedWords: unauthorizedWords.map(withIdField),
+        rejectedIds,
+        synced,
+        unauthorized: unauthorized.map(withIdField),
     });
 });
 

@@ -95,7 +95,9 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
     const userId = req.userId ?? '';
     const clientSuggestions: (SuggestionAttr & { id: string; locallyUpdatedAt: number })[] =
         req.body;
-    const syncedSuggestions = [];
+    const synced = [];
+    const unauthorized: unknown[] = [];
+    const rejectedIds: string[] = [];
 
     for (const suggestion of clientSuggestions) {
         try {
@@ -125,7 +127,7 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
                         { $set: { ...updatingSuggestion, ...mergedFlags, updatedAt: now } },
                         { new: true, upsert: true },
                     );
-                    syncedSuggestions.push({ id: updated?._id, updatedAt: updated?.updatedAt });
+                    synced.push({ id: updated?._id, updatedAt: updated?.updatedAt });
                 }
 
                 continue;
@@ -137,13 +139,13 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
                 { new: true, upsert: true },
             );
 
-            syncedSuggestions.push({ id: created._id, updatedAt: created.updatedAt });
+            synced.push({ id: created._id, updatedAt: created.updatedAt });
         } catch (error) {
             console.error(`Failed to sync suggestion ${suggestion.id}:`, error);
         }
     }
 
-    res.json(syncedSuggestions);
+    res.json({ rejectedIds, synced, unauthorized });
 });
 
 router.post(
