@@ -30,7 +30,6 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
 
 router.get('/bundle/:bundleId', authenticate, async (req: Request, res: Response) => {
     const { bundleId } = req.params;
-    const userId = req.userId ?? '';
 
     const bundle = await WordsBundle.findOne({ _id: bundleId, removed: false });
 
@@ -39,34 +38,133 @@ router.get('/bundle/:bundleId', authenticate, async (req: Request, res: Response
         return;
     }
 
-    const requesterMembership = await BundleMember.findOne({
-        bundleId,
-        removed: false,
-        userId,
-    });
+    const members = await BundleMember.find({ bundleId, removed: false })
+        .populate('userId', 'name picture')
+        .lean();
 
-    if (bundle.visibility !== 'public' && !requesterMembership) {
-        res.json([]);
+    const mappedMembers = members
+        .filter(member => member.userId)
+        .map(member => {
+            const user = member.userId as unknown as {
+                _id: Types.ObjectId;
+                name: string;
+                picture?: string;
+            };
+
+            return {
+                ...withIdField(member),
+                userId: user._id,
+                userSummary: { id: user._id, name: user.name, picture: user.picture },
+            };
+        });
+
+    res.json(mappedMembers);
+});
+
+router.patch('/:id/role', authenticate, async (req: Request, res: Response) => {
+    const userId = req.userId ?? '';
+    const { id } = req.params;
+    const { role } = req.body as { role?: 'editor' | 'viewer' | 'owner' };
+
+    if (role !== 'editor' && role !== 'viewer' && role !== 'owner') {
+        res.status(400).json({ message: 'Invalid role' });
         return;
     }
 
-    const members = await BundleMember.find({ bundleId }).populate('userId', 'name picture').lean();
+    const member = await BundleMember.findOne({ _id: id, removed: false });
 
-    const mappedMembers = members.map(member => {
-        const user = member.userId as unknown as {
-            _id: Types.ObjectId;
-            name: string;
-            picture?: string;
-        };
+    if (!member) {
+        res.status(404).json({ message: 'Member not found' });
+        return;
+    }
 
-        return {
-            ...withIdField(member),
-            userId: user._id,
-            userSummary: { id: user._id, name: user.name, picture: user.picture },
-        };
-    });
+    const bundle = await WordsBundle.findOne({ _id: member.bundleId, removed: false });
 
-    res.json(mappedMembers);
+    if (!bundle) {
+        res.status(404).json({ message: 'Bundle not found' });
+        return;
+    }
+
+    if (bundle.ownerId.toString() !== userId) {
+        res.status(403).json({ message: 'Only the owner can change member roles' });
+        return;
+    }
+
+    if (member.userId.toString() === userId) {
+        res.status(400).json({ message: 'Owner cannot change their own role directly' });
+        return;
+    }
+
+    if (member.role === 'owner') {
+        res.status(400).json({ message: 'Cannot change the role of the owner' });
+        return;
+    }
+
+    const now = nowUTC();
+
+    if (role === 'owner') {
+        const currentOwnerMembership = await BundleMember.findOne({
+            bundleId: bundle._id,
+            removed: false,
+            userId,
+        });
+
+        member.role = 'owner';
+        await member.save();
+
+        if (currentOwnerMembership) {
+            currentOwnerMembership.role = 'editor';
+            currentOwnerMembership.updatedAt = new Date(now);
+            await currentOwnerMembership.save();
+        }
+
+        bundle.ownerId = member.userId;
+        await bundle.save();
+
+        res.json(withIdField(member.toObject()));
+        return;
+    }
+
+    member.role = role;
+    member.updatedAt = new Date(now);
+    await member.save();
+
+    res.json(withIdField(member.toObject()));
+});
+
+router.delete('/:id', authenticate, async (req: Request, res: Response) => {
+    const userId = req.userId ?? '';
+    const { id } = req.params;
+
+    const member = await BundleMember.findOne({ _id: id, removed: false });
+
+    if (!member) {
+        res.status(404).json({ message: 'Member not found' });
+        return;
+    }
+
+    const bundle = await WordsBundle.findOne({ _id: member.bundleId, removed: false });
+
+    if (!bundle) {
+        res.status(404).json({ message: 'Bundle not found' });
+        return;
+    }
+
+    if (bundle.ownerId.toString() !== userId) {
+        res.status(403).json({ message: 'Only the owner can remove members' });
+        return;
+    }
+
+    if (member.role === 'owner') {
+        res.status(400).json({ message: 'Cannot remove the owner' });
+        return;
+    }
+
+    member.removed = true;
+    member.updatedAt = new Date(nowUTC());
+    await member.save();
+
+    res.json(withIdField(member.toObject()));
 });
 
 router.post('/sync', authenticate, async (req: Request, res: Response) => {
@@ -116,7 +214,16 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
                     continue;
                 }
 
-                if (member.role !== existingMember.role && (!isOwner || member.role === 'owner')) {
+                const isRejoin =
+                    existingMember.removed === true &&
+                    member.removed === false &&
+                    targetUserId === userId;
+
+                if (
+                    member.role !== existingMember.role &&
+                    (!isOwner || member.role === 'owner') &&
+                    !(isRejoin && member.role === 'viewer')
+                ) {
                     unauthorized.push(existingMember.toObject());
                     continue;
                 }
@@ -125,7 +232,8 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
                     member.removed !== existingMember.removed &&
                     member.removed === false &&
                     !isOwner &&
-                    bundle.visibility !== 'public'
+                    bundle.visibility !== 'public' &&
+                    !isRejoin
                 ) {
                     unauthorized.push(existingMember.toObject());
                     continue;
