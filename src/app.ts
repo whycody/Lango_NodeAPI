@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 
 import appConfigRoutes from './routes/appConfig';
 import authRoutes from './routes/auth';
+import bundleInteractionsRoutes from './routes/bundleInteractions';
 import bundleMembersRoutes from './routes/bundleMembers';
 import evaluationsRoutes from './routes/evaluations';
 import notificationsRoutes from './routes/notifications';
@@ -25,6 +26,7 @@ app.use('/translations', translationsRoutes);
 app.use('/api', wordRoutes);
 app.use('/words-bundles', wordsBundlesRoutes);
 app.use('/bundle-members', bundleMembersRoutes);
+app.use('/bundle-interactions', bundleInteractionsRoutes);
 app.use('/notifications', notificationsRoutes);
 
 app.get('/', (req: Request, res: Response) => {
