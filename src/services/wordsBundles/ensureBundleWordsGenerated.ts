@@ -1,4 +1,3 @@
-import { HydratedDocument } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 
 import BundleThemeInstance from '../../models/core/BundleThemeInstance';
@@ -12,7 +11,10 @@ import { getAdminUserId } from '../utils/getAdminUserId';
 const ENSURE_WORDS_BASE_LOCK_TTL_SECONDS = 60;
 const ENSURE_WORDS_PER_WORD_LOCK_TTL_SECONDS = 2;
 
-type WordsBundleDocument = HydratedDocument<InstanceType<typeof WordsBundle>>;
+type EnsurableBundle = Pick<
+    InstanceType<typeof WordsBundle>,
+    '_id' | 'themeInstanceId' | 'translationLang' | 'wordsGenerated'
+>;
 
 const findBundleWords = (bundleId: unknown) => Word.find({ bundleId, removed: false }).lean();
 
@@ -24,7 +26,7 @@ export type EnsureBundleWordsResult =
     | { status: 'misconfigured' };
 
 export async function ensureBundleWordsGenerated(
-    bundle: WordsBundleDocument,
+    bundle: EnsurableBundle,
 ): Promise<EnsureBundleWordsResult> {
     if (!bundle.themeInstanceId) {
         return { status: 'not-a-theme-bundle' };

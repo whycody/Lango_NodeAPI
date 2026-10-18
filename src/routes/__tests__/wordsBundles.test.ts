@@ -657,6 +657,179 @@ describe('WordsBundles Routes', () => {
         });
     });
 
+    describe('GET /words-bundles/recommended', () => {
+        const originalAdminUserId = process.env.ADMIN_USER_ID;
+
+        const bundleFor = (id: string, premiumOnly: boolean, wordsGenerated = true) => ({
+            _id: id,
+            ownerId: 'admin1',
+            premiumOnly,
+            themeInstanceId: `instance-${id}`,
+            translationLang: 'pl',
+            wordsGenerated,
+        });
+
+        const mockUser = (user: unknown) =>
+            (User.findById as jest.Mock).mockReturnValue(mockLean(user));
+
+        const mockSamples = (premium: unknown[], free: unknown[]) =>
+            (WordsBundle.aggregate as jest.Mock)
+                .mockResolvedValueOnce(premium)
+                .mockResolvedValueOnce(free);
+
+        const getSampleMatch = (callIndex: number) =>
+            (WordsBundle.aggregate as jest.Mock).mock.calls[callIndex][0][0].$match;
+
+        beforeEach(() => {
+            mockUser({
+                languageLevels: [{ language: 'en', level: 3 }],
+                mainLang: 'en',
+                translationLang: 'pl',
+            });
+            (User.find as jest.Mock).mockReturnValue(mockLean([{ _id: 'admin1', name: 'Lango' }]));
+            (Word.aggregate as jest.Mock).mockResolvedValue([]);
+            (BundleThemeInstance.find as jest.Mock).mockReturnValue(mockLean([]));
+        });
+
+        afterEach(() => {
+            restoreEnvVar('ADMIN_USER_ID', originalAdminUserId);
+            (WordsBundle.aggregate as jest.Mock).mockReset();
+            (withGenerationLock as jest.Mock).mockReset();
+        });
+
+        it('returns 401 when authorization token is missing', async () => {
+            const res = await request(app).get('/words-bundles/recommended');
+            expect(res.status).toBe(401);
+        });
+
+        it('returns 400 when the user has no level for the language', async () => {
+            mockUser({ languageLevels: [], mainLang: 'en', translationLang: 'pl' });
+
+            const res = await request(app)
+                .get('/words-bundles/recommended')
+                .set('Authorization', auth);
+
+            expect(res.status).toBe(400);
+            expect(WordsBundle.aggregate).not.toHaveBeenCalled();
+        });
+
+        it('returns 400 when languages are invalid', async () => {
+            const res = await request(app)
+                .get('/words-bundles/recommended?mainLang=xx')
+                .set('Authorization', auth);
+
+            expect(res.status).toBe(400);
+        });
+
+        it('samples theme bundles matching the user level and languages', async () => {
+            mockSamples([], []);
+
+            const res = await request(app)
+                .get('/words-bundles/recommended')
+                .set('Authorization', auth);
+
+            expect(res.status).toBe(200);
+            expect(res.body).toEqual([]);
+            expect(getSampleMatch(0)).toEqual({
+                level: 'B1',
+                mainLang: 'en',
+                premiumOnly: true,
+                removed: false,
+                themeInstanceId: { $type: 'objectId' },
+                translationLang: 'pl',
+                visibility: 'public',
+            });
+            expect(getSampleMatch(1).premiumOnly).toEqual({ $ne: true });
+        });
+
+        it('uses mainLang and translationLang from the query', async () => {
+            mockUser({
+                languageLevels: [
+                    { language: 'en', level: 3 },
+                    { language: 'es', level: 5 },
+                ],
+                mainLang: 'en',
+                translationLang: 'pl',
+            });
+            mockSamples([], []);
+
+            await request(app)
+                .get('/words-bundles/recommended?mainLang=es&translationLang=en')
+                .set('Authorization', auth);
+
+            expect(getSampleMatch(0)).toMatchObject({
+                level: 'C1',
+                mainLang: 'es',
+                translationLang: 'en',
+            });
+        });
+
+        it('returns 1 premium and 2 non-premium bundles when available', async () => {
+            mockSamples(
+                [bundleFor('p1', true), bundleFor('p2', true), bundleFor('p3', true)],
+                [bundleFor('f1', false), bundleFor('f2', false), bundleFor('f3', false)],
+            );
+
+            const res = await request(app)
+                .get('/words-bundles/recommended')
+                .set('Authorization', auth);
+
+            expect(res.status).toBe(200);
+            expect(res.body).toHaveLength(3);
+            expect(res.body.filter((b: { premiumOnly: boolean }) => b.premiumOnly)).toHaveLength(1);
+            expect(res.body[0]).not.toHaveProperty('themeInstanceId');
+            expect(res.body[0]).toMatchObject({ ownerName: 'Lango' });
+        });
+
+        it('fills remaining slots with non-premium bundles when there are no premium ones', async () => {
+            mockSamples(
+                [],
+                [bundleFor('f1', false), bundleFor('f2', false), bundleFor('f3', false)],
+            );
+
+            const res = await request(app)
+                .get('/words-bundles/recommended')
+                .set('Authorization', auth);
+
+            expect(res.body.map((b: { id: string }) => b.id).sort()).toEqual(['f1', 'f2', 'f3']);
+        });
+
+        it('fills remaining slots with premium bundles when non-premium ones are missing', async () => {
+            mockSamples(
+                [bundleFor('p1', true), bundleFor('p2', true), bundleFor('p3', true)],
+                [bundleFor('f1', false)],
+            );
+
+            const res = await request(app)
+                .get('/words-bundles/recommended')
+                .set('Authorization', auth);
+
+            expect(res.body.map((b: { id: string }) => b.id).sort()).toEqual(['f1', 'p1', 'p2']);
+        });
+
+        it('starts word generation for pending bundles in the background without waiting', async () => {
+            process.env.ADMIN_USER_ID = '507f1f77bcf86cd799439055';
+            mockSamples(
+                [bundleFor('p1', true, false)],
+                [bundleFor('f1', false), bundleFor('f2', false, false)],
+            );
+            (BundleThemeInstance.findById as jest.Mock).mockReturnValue(
+                mockLean({ mainLang: 'en', words: ['pillow'] }),
+            );
+            (withGenerationLock as jest.Mock).mockReturnValue(new Promise(() => {}));
+
+            const res = await request(app)
+                .get('/words-bundles/recommended')
+                .set('Authorization', auth);
+
+            expect(res.status).toBe(200);
+            expect(res.body).toHaveLength(3);
+
+            const lockKeys = (withGenerationLock as jest.Mock).mock.calls.map(call => call[0]);
+            expect(lockKeys.sort()).toEqual(['theme-bundle_f2', 'theme-bundle_p1']);
+        });
+    });
+
     describe('POST /words-bundles/sync', () => {
         it('creates a new bundle when it does not exist', async () => {
             (WordsBundle.findOne as jest.Mock).mockResolvedValue(null);

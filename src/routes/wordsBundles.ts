@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { Request, Response, Router } from 'express';
 import { Types } from 'mongoose';
 
+import { CEFR_LEVEL_BY_LANGUAGE_LEVEL } from '../constants/cefrLevels';
 import { isLanguageCodeValue, LanguageCodeValue } from '../constants/languageCodes';
 import authenticate from '../middleware/auth';
 import requireAdmin from '../middleware/requireAdmin';
@@ -20,6 +21,7 @@ import { withIdField } from '../services/utils/withIdField';
 import { canViewBundle } from '../services/wordsBundles/canViewBundle';
 import { ensureBundleWordsGenerated } from '../services/wordsBundles/ensureBundleWordsGenerated';
 import { getFlashcardsCountByBundleId } from '../services/wordsBundles/getFlashcardsCounts';
+import { pickRecommendedBundles } from '../services/wordsBundles/pickRecommendedBundles';
 import { toBundleResponse } from '../services/wordsBundles/toBundleResponse';
 
 const router = Router();
@@ -237,6 +239,76 @@ router.get('/search', authenticate, async (req: Request, res: Response) => {
     }));
 
     res.json({ data: mappedBundles, total });
+});
+
+router.get('/recommended', authenticate, async (req: Request, res: Response) => {
+    const userId = req.userId ?? '';
+
+    const user = await User.findById(userId, {
+        languageLevels: 1,
+        mainLang: 1,
+        translationLang: 1,
+    }).lean();
+
+    if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+    }
+
+    const mainLang = req.query.mainLang ?? user.mainLang;
+    const translationLang = req.query.translationLang ?? user.translationLang;
+
+    if (!isLanguageCodeValue(mainLang) || !isLanguageCodeValue(translationLang)) {
+        return res
+            .status(400)
+            .json({ message: 'mainLang and translationLang must be valid language codes' });
+    }
+
+    const languageLevel = user.languageLevels?.find(entry => entry.language === mainLang);
+
+    if (!languageLevel) {
+        return res.status(400).json({ message: `No language level set for ${mainLang}` });
+    }
+
+    const bundles = await pickRecommendedBundles({
+        level: CEFR_LEVEL_BY_LANGUAGE_LEVEL[languageLevel.level],
+        mainLang,
+        translationLang,
+    });
+
+    // Fire-and-forget: pending theme bundles get their words generated in parallel so they are
+    // likely ready by the time the user opens one. Locking inside ensureBundleWordsGenerated
+    // prevents duplicate GPT calls across concurrent requests.
+    for (const bundle of bundles.filter(bundle => !bundle.wordsGenerated)) {
+        ensureBundleWordsGenerated(bundle)
+            .then(result => {
+                if (result.status !== 'ready' && result.status !== 'locked') {
+                    console.error(
+                        `Background word generation for bundle ${bundle._id} ended with status ${result.status}`,
+                    );
+                }
+            })
+            .catch(error =>
+                console.error(`Background word generation for bundle ${bundle._id} failed:`, error),
+            );
+    }
+
+    const ownerIds = [...new Set(bundles.map(bundle => bundle.ownerId.toString()))];
+
+    const [owners, flashcardsCountByBundleId] = await Promise.all([
+        User.find({ _id: { $in: ownerIds } }, { name: 1, picture: 1 }).lean(),
+        getFlashcardsCountByBundleId(bundles),
+    ]);
+
+    const ownerById = new Map(owners.map(owner => [owner._id.toString(), owner]));
+
+    res.json(
+        bundles.map(bundle => ({
+            ...toBundleResponse(bundle),
+            flashcardsCount: flashcardsCountByBundleId.get(bundle._id.toString()) ?? 0,
+            ownerName: ownerById.get(bundle.ownerId.toString())?.name,
+            ownerPicture: ownerById.get(bundle.ownerId.toString())?.picture,
+        })),
+    );
 });
 
 router.post('/sync', authenticate, async (req: Request, res: Response) => {
