@@ -1,4 +1,4 @@
-import { HydratedDocument, Types } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 
 import BundleThemeInstance from '../../models/core/BundleThemeInstance';
@@ -7,6 +7,7 @@ import WordsBundle from '../../models/core/WordsBundle';
 import { translateWords } from '../suggestions/translateWords';
 import { saveGPTReport } from '../suggestions/utils/reports/saveGPTReport';
 import { withGenerationLock } from '../suggestions/utils/withGenerationLock';
+import { getAdminUserId } from '../utils/getAdminUserId';
 
 const ENSURE_WORDS_BASE_LOCK_TTL_SECONDS = 60;
 const ENSURE_WORDS_PER_WORD_LOCK_TTL_SECONDS = 2;
@@ -41,8 +42,10 @@ export async function ensureBundleWordsGenerated(
         return { status: 'misconfigured' };
     }
 
-    if (!process.env.ADMIN_USER_ID) {
-        console.error('ADMIN_USER_ID is not configured');
+    const adminUserId = getAdminUserId();
+
+    if (!adminUserId) {
+        console.error('ADMIN_USER_ID is not configured or is not a valid ObjectId');
         return { status: 'misconfigured' };
     }
 
@@ -52,57 +55,71 @@ export async function ensureBundleWordsGenerated(
         instance.words.length * ENSURE_WORDS_PER_WORD_LOCK_TTL_SECONDS;
 
     let generationFailed = false;
+    let acquired: boolean;
 
-    const acquired = await withGenerationLock(
-        lockKey,
-        async () => {
-            const refreshedBundle = await WordsBundle.findById(bundle._id);
+    try {
+        acquired = await withGenerationLock(
+            lockKey,
+            async () => {
+                const refreshedBundle = await WordsBundle.findById(bundle._id);
 
-            if (refreshedBundle?.wordsGenerated) {
-                return;
-            }
+                if (refreshedBundle?.wordsGenerated) {
+                    return;
+                }
 
-            const { fetchMetadata, translations } = await translateWords(
-                instance.mainLang,
-                bundle.translationLang,
-                instance.words,
-            );
+                const { fetchMetadata, translations } = await translateWords(
+                    instance.mainLang,
+                    bundle.translationLang,
+                    instance.words,
+                );
 
-            await saveGPTReport(fetchMetadata);
+                await saveGPTReport(fetchMetadata);
 
-            if (translations.length === 0) {
-                generationFailed = true;
-                return;
-            }
+                const words = translations
+                    .filter(item => item.isValid && item.translations.length > 0)
+                    .map(item => ({
+                        _id: uuidv4(),
+                        bundleId: bundle._id,
+                        mainLang: instance.mainLang,
+                        source: 'lango',
+                        text: item.source,
+                        translation: item.translations.join(', '),
+                        translationLang: bundle.translationLang,
+                        userId: adminUserId,
+                    }));
 
-            const adminUserId = new Types.ObjectId(process.env.ADMIN_USER_ID);
+                if (words.length === 0) {
+                    generationFailed = true;
+                    return;
+                }
 
-            const words = translations
-                .filter(item => item.isValid && item.translations.length > 0)
-                .map(item => ({
-                    _id: uuidv4(),
-                    bundleId: bundle._id,
-                    mainLang: instance.mainLang,
-                    source: 'lango',
-                    text: item.source,
-                    translation: item.translations.join(', '),
-                    translationLang: bundle.translationLang,
-                    userId: adminUserId,
-                }));
+                // The lock can expire while translating, letting a second request generate in
+                // parallel; claiming the flag atomically ensures only one of them inserts words.
+                const claimed = await WordsBundle.findOneAndUpdate(
+                    { _id: bundle._id, wordsGenerated: { $ne: true } },
+                    { $set: { wordsGenerated: true } },
+                );
 
-            if (words.length === 0) {
-                generationFailed = true;
-                return;
-            }
+                if (!claimed) {
+                    return;
+                }
 
-            await Word.insertMany(words, { ordered: false });
-
-            await WordsBundle.findByIdAndUpdate(bundle._id, {
-                $set: { wordsGenerated: true },
-            });
-        },
-        lockTTLSeconds,
-    );
+                try {
+                    await Word.insertMany(words, { ordered: false });
+                } catch (error) {
+                    await Word.deleteMany({ _id: { $in: words.map(word => word._id) } });
+                    await WordsBundle.findByIdAndUpdate(bundle._id, {
+                        $set: { wordsGenerated: false },
+                    });
+                    throw error;
+                }
+            },
+            lockTTLSeconds,
+        );
+    } catch (error) {
+        console.error(`Failed to generate words for bundle ${bundle._id}:`, error);
+        return { status: 'failed' };
+    }
 
     if (!acquired) {
         return { status: 'locked' };

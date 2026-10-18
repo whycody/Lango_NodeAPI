@@ -95,6 +95,10 @@ router.post('/', authenticate, requireAdmin, async (req: Request, res: Response)
     }
 
     try {
+        if (!(await BundleCategory.exists({ slug: category }))) {
+            return res.status(400).json({ error: `Category "${category}" does not exist` });
+        }
+
         const theme = await BundleTheme.create({
             category,
             createdBy: createdBy ?? 'claude',

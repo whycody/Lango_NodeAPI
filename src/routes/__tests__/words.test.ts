@@ -172,7 +172,7 @@ describe('Words Routes', () => {
                     translations: [{ isValid: true, source: 'pillow', translations: ['poduszka'] }],
                 });
                 (Word.insertMany as jest.Mock).mockResolvedValue([]);
-                (WordsBundle.findByIdAndUpdate as jest.Mock).mockResolvedValue({});
+                (WordsBundle.findOneAndUpdate as jest.Mock).mockResolvedValue({ _id: 'bundle1' });
                 (Word.find as jest.Mock).mockReturnValue(
                     mockLean([{ _id: 'word1', text: 'pillow', translation: 'poduszka' }]),
                 );
@@ -187,9 +187,10 @@ describe('Words Routes', () => {
                     { id: 'word1', text: 'pillow', translation: 'poduszka' },
                 ]);
                 expect(saveGPTReport).toHaveBeenCalledWith({ totalWords: 1 });
-                expect(WordsBundle.findByIdAndUpdate).toHaveBeenCalledWith('bundle1', {
-                    $set: { wordsGenerated: true },
-                });
+                expect(WordsBundle.findOneAndUpdate).toHaveBeenCalledWith(
+                    { _id: 'bundle1', wordsGenerated: { $ne: true } },
+                    { $set: { wordsGenerated: true } },
+                );
             });
 
             it('returns 409 when generation is already in progress for the bundle', async () => {

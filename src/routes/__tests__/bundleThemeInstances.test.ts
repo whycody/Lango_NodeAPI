@@ -209,6 +209,11 @@ describe('BundleThemeInstances Routes', () => {
                     });
 
                 expect(res.status).toBe(200);
+                expect(WordsBundle.find).toHaveBeenCalledWith({
+                    removed: false,
+                    themeInstanceId: 'instance1',
+                    wordsGenerated: true,
+                });
                 expect(Word.findOne).toHaveBeenCalledWith(
                     expect.objectContaining({
                         bundleId: 'bundle1',

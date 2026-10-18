@@ -12,12 +12,15 @@ import BundleThemeInstance from '../models/core/BundleThemeInstance';
 import User from '../models/core/User';
 import Word from '../models/core/Word';
 import WordsBundle from '../models/core/WordsBundle';
+import { getAdminUserId } from '../services/utils/getAdminUserId';
 import { isBundleOwner } from '../services/utils/isBundleOwner';
 import { parsePagination } from '../services/utils/pagination';
 import { buildSearchTextFilters } from '../services/utils/searchTextFilters';
 import { withIdField } from '../services/utils/withIdField';
+import { canViewBundle } from '../services/wordsBundles/canViewBundle';
 import { ensureBundleWordsGenerated } from '../services/wordsBundles/ensureBundleWordsGenerated';
 import { getFlashcardsCountByBundleId } from '../services/wordsBundles/getFlashcardsCounts';
+import { toBundleResponse } from '../services/wordsBundles/toBundleResponse';
 
 const router = Router();
 
@@ -39,6 +42,22 @@ const generateJoinCode = () => {
     return code;
 };
 
+/** Fields that only the server (admin theme-bundle flow, model hooks) may set. */
+const SERVER_MANAGED_BUNDLE_FIELDS = [
+    'category',
+    'level',
+    'ownerId',
+    'premiumOnly',
+    'searchText',
+    'themeInstanceId',
+    'wordsGenerated',
+];
+
+const omitServerManagedFields = (bundle: Record<string, unknown>) =>
+    Object.fromEntries(
+        Object.entries(bundle).filter(([key]) => !SERVER_MANAGED_BUNDLE_FIELDS.includes(key)),
+    );
+
 router.get('/', authenticate, async (req: Request, res: Response) => {
     const { since } = req.query;
     const userId = req.userId ?? '';
@@ -57,7 +76,7 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
 
     const bundles = await WordsBundle.find(query).lean();
 
-    res.json(bundles.map(withIdField));
+    res.json(bundles.map(toBundleResponse));
 });
 
 router.get('/by-ids', authenticate, async (req: Request, res: Response) => {
@@ -94,7 +113,7 @@ router.get('/by-ids', authenticate, async (req: Request, res: Response) => {
     const ownerPictureById = new Map(owners.map(owner => [owner._id.toString(), owner.picture]));
 
     const mappedBundles = bundles.map(bundle => ({
-        ...withIdField(bundle),
+        ...toBundleResponse(bundle),
         flashcardsCount: flashcardsCountByBundleId.get(bundle._id.toString()) ?? 0,
         ownerName: ownerNameById.get(bundle.ownerId.toString()),
         ownerPicture: ownerPictureById.get(bundle.ownerId.toString()),
@@ -163,9 +182,7 @@ router.get('/search', authenticate, async (req: Request, res: Response) => {
         },
     };
 
-    const adminOwnerId = process.env.ADMIN_USER_ID
-        ? new Types.ObjectId(process.env.ADMIN_USER_ID)
-        : null;
+    const adminOwnerId = getAdminUserId();
 
     const [facetResult] = await WordsBundle.aggregate<{
         data: Array<{ _id: Types.ObjectId; ownerId: Types.ObjectId; [key: string]: unknown }>;
@@ -213,7 +230,7 @@ router.get('/search', authenticate, async (req: Request, res: Response) => {
     const ownerPictureById = new Map(owners.map(owner => [owner._id.toString(), owner.picture]));
 
     const mappedBundles = bundles.map(bundle => ({
-        ...withIdField(bundle),
+        ...toBundleResponse(bundle),
         flashcardsCount: flashcardsCountByBundleId.get(bundle._id.toString()) ?? 0,
         ownerName: ownerNameById.get(bundle.ownerId.toString()),
         ownerPicture: ownerPictureById.get(bundle.ownerId.toString()),
@@ -244,7 +261,7 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
                 { _id: bundle.id, ownerId: new Types.ObjectId(userId) },
                 {
                     $set: {
-                        ...bundle,
+                        ...omitServerManagedFields(bundle),
                         updatedAt: nowUTC(),
                         ...(existingBundle ? {} : { wordsGenerated: true }),
                     },
@@ -314,8 +331,14 @@ router.post(
             return res.status(500).json({ error: 'Failed to create theme bundle' });
         }
 
-        if (!process.env.ADMIN_USER_ID) {
-            console.error('ADMIN_USER_ID is not configured');
+        if (theme.status !== 'active') {
+            return res.status(400).json({ error: 'Theme must be active to create a bundle' });
+        }
+
+        const adminUserId = getAdminUserId();
+
+        if (!adminUserId) {
+            console.error('ADMIN_USER_ID is not configured or is not a valid ObjectId');
             return res.status(500).json({ error: 'Failed to create theme bundle' });
         }
 
@@ -325,7 +348,7 @@ router.post(
                 description,
                 level: theme.level,
                 mainLang: instance.mainLang,
-                ownerId: new Types.ObjectId(process.env.ADMIN_USER_ID),
+                ownerId: adminUserId,
                 premiumOnly: premiumOnly ?? false,
                 themeInstanceId: instance._id,
                 title,
@@ -429,12 +452,21 @@ router.post('/:id/generate-invitation-code', authenticate, async (req: Request, 
 });
 
 router.post('/:id/ensure-words', authenticate, async (req: Request, res: Response) => {
+    const userId = req.userId ?? '';
     const { id } = req.params;
 
-    const bundle = await WordsBundle.findById(id);
+    if (!Types.ObjectId.isValid(id)) {
+        return res.status(404).json({ message: 'Bundle not found' });
+    }
+
+    const bundle = await WordsBundle.findOne({ _id: id, removed: false });
 
     if (!bundle) {
         return res.status(404).json({ message: 'Bundle not found' });
+    }
+
+    if (!(await canViewBundle(bundle, userId))) {
+        return res.status(403).json({ message: 'You do not have access to this bundle' });
     }
 
     const result = await ensureBundleWordsGenerated(bundle);
@@ -494,7 +526,7 @@ router.post('/join/:code', authenticate, async (req: Request, res: Response) => 
         await existingMember.save();
 
         return res.json({
-            bundle: withIdField(bundle),
+            bundle: toBundleResponse(bundle),
             member: withIdField(existingMember.toObject()),
         });
     }
@@ -507,7 +539,7 @@ router.post('/join/:code', authenticate, async (req: Request, res: Response) => 
     });
 
     res.status(201).json({
-        bundle: withIdField(bundle),
+        bundle: toBundleResponse(bundle),
         member: withIdField(member.toObject()),
     });
 });

@@ -1,7 +1,7 @@
 import { Request, Response, Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 
-import { isLanguageCodeValue,LanguageCodeValue } from '../constants/languageCodes';
+import { isLanguageCodeValue, LanguageCodeValue } from '../constants/languageCodes';
 import authenticate from '../middleware/auth';
 import requireAdmin from '../middleware/requireAdmin';
 import BundleThemeInstance from '../models/core/BundleThemeInstance';
@@ -135,7 +135,13 @@ async function regenerateExistingBundles(
     mainLang: LanguageCodeValue,
     wordChanges: { old: string; new: string }[],
 ): Promise<string[]> {
-    const bundles = await WordsBundle.find({ themeInstanceId }).lean();
+    // Pending bundles get the updated instance words on lazy generation, so only bundles whose
+    // words already exist need patching.
+    const bundles = await WordsBundle.find({
+        removed: false,
+        themeInstanceId,
+        wordsGenerated: true,
+    }).lean();
     const failedTranslationLangs: string[] = [];
 
     const newTexts = wordChanges.map(change => change.new);

@@ -6,6 +6,7 @@ import BundleMember from '../models/core/BundleMember';
 import Word from '../models/core/Word';
 import WordsBundle from '../models/core/WordsBundle';
 import { withIdField } from '../services/utils/withIdField';
+import { canViewBundle } from '../services/wordsBundles/canViewBundle';
 import { ensureBundleWordsGenerated } from '../services/wordsBundles/ensureBundleWordsGenerated';
 
 const router = Router();
@@ -27,16 +28,8 @@ router.get('/words', authenticate, async (req: Request, res: Response) => {
             return res.status(404).json({ message: 'Bundle not found' });
         }
 
-        if (bundle.visibility !== 'public') {
-            const membership = await BundleMember.findOne({
-                bundleId: requestedBundleId,
-                removed: false,
-                userId: new Types.ObjectId(userId),
-            });
-
-            if (!membership) {
-                return res.status(403).json({ message: 'You do not have access to this bundle' });
-            }
+        if (!(await canViewBundle(bundle, userId))) {
+            return res.status(403).json({ message: 'You do not have access to this bundle' });
         }
 
         if (bundle.themeInstanceId && !bundle.wordsGenerated) {

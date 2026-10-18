@@ -117,7 +117,21 @@ describe('BundleThemes Routes', () => {
             expect(res.status).toBe(400);
         });
 
+        it('returns 400 when the category does not exist', async () => {
+            (BundleCategory.exists as jest.Mock).mockResolvedValue(null);
+
+            const res = await request(app)
+                .post('/bundle-themes')
+                .set('Authorization', auth)
+                .send(validBody);
+
+            expect(res.status).toBe(400);
+            expect(BundleCategory.exists).toHaveBeenCalledWith({ slug: 'food' });
+            expect(BundleTheme.create).not.toHaveBeenCalled();
+        });
+
         it('creates a theme with status active by default', async () => {
+            (BundleCategory.exists as jest.Mock).mockResolvedValue({ _id: 'category1' });
             (BundleTheme.create as jest.Mock).mockResolvedValue({
                 toObject: () => ({ _id: 'theme1', ...validBody, status: 'active' }),
             });

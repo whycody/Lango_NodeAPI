@@ -87,7 +87,7 @@ wordsBundleSchema.index({ ownerId: 1 });
 wordsBundleSchema.index({ searchText: 1, visibility: 1 });
 wordsBundleSchema.index(
     { themeInstanceId: 1, translationLang: 1 },
-    { partialFilterExpression: { themeInstanceId: { $exists: true } }, unique: true },
+    { partialFilterExpression: { themeInstanceId: { $type: 'objectId' } }, unique: true },
 );
 
 export default model<WordsBundle>('WordsBundle', wordsBundleSchema, 'words_bundles');
