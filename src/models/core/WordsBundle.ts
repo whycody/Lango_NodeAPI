@@ -1,7 +1,8 @@
 import { Document, model, Schema, Types } from 'mongoose';
 
+import { CEFR_LEVELS, CefrLevel } from '../../constants/cefrLevels';
 import { LanguageCode, LanguageCodeValue } from '../../constants/languageCodes';
-import { stripDiacritics } from '../../services/utils/stripDiacritics';
+import { normalizeForSearch } from '../../services/utils/searchTextFilters';
 
 interface WordsBundleFields {
     ownerId: Types.ObjectId;
@@ -12,24 +13,32 @@ interface WordsBundleFields {
     translationLang: LanguageCodeValue;
     visibility: 'private' | 'friends' | 'public';
     removed: boolean;
+    themeInstanceId?: Types.ObjectId;
+    category?: string;
+    level?: CefrLevel;
+    wordsGenerated: boolean;
+    /** Read-only marker; not enforced anywhere yet (no premium/subscription concept in this backend). */
+    premiumOnly: boolean;
     createdAt: Date;
     updatedAt: Date;
 }
 
 interface WordsBundle extends Document, WordsBundleFields {}
 
-const normalizeForSearch = (text: string): string => stripDiacritics(text).toLowerCase();
-
 export const buildSearchText = (title: string, description?: string): string =>
     normalizeForSearch(description ? `${title} ${description}` : title);
 
 const wordsBundleSchema = new Schema<WordsBundle>(
     {
+        category: { type: String },
         description: { type: String },
+        level: { enum: CEFR_LEVELS, type: String },
         mainLang: { enum: Object.values(LanguageCode), required: true, type: String },
         ownerId: { ref: 'User', required: true, type: Schema.Types.ObjectId },
+        premiumOnly: { default: false, type: Boolean },
         removed: { default: false, type: Boolean },
         searchText: { required: true, select: false, type: String },
+        themeInstanceId: { ref: 'BundleThemeInstance', type: Schema.Types.ObjectId },
         title: { required: true, type: String },
         translationLang: { enum: Object.values(LanguageCode), required: true, type: String },
         visibility: {
@@ -38,6 +47,7 @@ const wordsBundleSchema = new Schema<WordsBundle>(
             required: true,
             type: String,
         },
+        wordsGenerated: { type: Boolean },
     },
     { timestamps: true },
 );
@@ -56,9 +66,13 @@ export const applySearchTextToUpdate = (
     }
 };
 
-wordsBundleSchema.pre('save', function (next) {
+wordsBundleSchema.pre('validate', function (next) {
     if (this.isModified('title') || this.isModified('description')) {
         this.searchText = buildSearchText(this.title, this.description);
+    }
+
+    if (this.wordsGenerated === undefined) {
+        this.wordsGenerated = this.themeInstanceId === undefined;
     }
 
     next();
@@ -71,5 +85,9 @@ wordsBundleSchema.pre('findOneAndUpdate', function (next) {
 
 wordsBundleSchema.index({ ownerId: 1 });
 wordsBundleSchema.index({ searchText: 1, visibility: 1 });
+wordsBundleSchema.index(
+    { themeInstanceId: 1, translationLang: 1 },
+    { partialFilterExpression: { themeInstanceId: { $exists: true } }, unique: true },
+);
 
 export default model<WordsBundle>('WordsBundle', wordsBundleSchema, 'words_bundles');

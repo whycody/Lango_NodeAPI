@@ -2,8 +2,11 @@ import express, { Request, Response } from 'express';
 
 import appConfigRoutes from './routes/appConfig';
 import authRoutes from './routes/auth';
+import bundleCategoriesRoutes from './routes/bundleCategories';
 import bundleInteractionsRoutes from './routes/bundleInteractions';
 import bundleMembersRoutes from './routes/bundleMembers';
+import bundleThemeInstancesRoutes from './routes/bundleThemeInstances';
+import bundleThemesRoutes from './routes/bundleThemes';
 import evaluationsRoutes from './routes/evaluations';
 import notificationsRoutes from './routes/notifications';
 import sessionsRoutes from './routes/sessions';
@@ -27,6 +30,9 @@ app.use('/api', wordRoutes);
 app.use('/words-bundles', wordsBundlesRoutes);
 app.use('/bundle-members', bundleMembersRoutes);
 app.use('/bundle-interactions', bundleInteractionsRoutes);
+app.use('/bundle-categories', bundleCategoriesRoutes);
+app.use('/bundle-themes', bundleThemesRoutes);
+app.use('/bundle-theme-instances', bundleThemeInstancesRoutes);
 app.use('/notifications', notificationsRoutes);
 
 app.get('/', (req: Request, res: Response) => {
