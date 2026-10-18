@@ -2,20 +2,27 @@ import crypto from 'crypto';
 import { Request, Response, Router } from 'express';
 import { Types } from 'mongoose';
 
-import { LanguageCode, LanguageCodeValue } from '../constants/languageCodes';
+import { CEFR_LEVEL_BY_LANGUAGE_LEVEL } from '../constants/cefrLevels';
+import { isLanguageCodeValue, LanguageCodeValue } from '../constants/languageCodes';
 import authenticate from '../middleware/auth';
+import requireAdmin from '../middleware/requireAdmin';
 import BundleJoinCode from '../models/core/BundleJoinCode';
 import BundleMember from '../models/core/BundleMember';
+import BundleTheme from '../models/core/BundleTheme';
+import BundleThemeInstance from '../models/core/BundleThemeInstance';
 import User from '../models/core/User';
 import Word from '../models/core/Word';
 import WordsBundle from '../models/core/WordsBundle';
+import { getAdminUserId } from '../services/utils/getAdminUserId';
+import { isBundleOwner } from '../services/utils/isBundleOwner';
 import { parsePagination } from '../services/utils/pagination';
 import { buildSearchTextFilters } from '../services/utils/searchTextFilters';
 import { withIdField } from '../services/utils/withIdField';
-
-const languageCodes: string[] = Object.values(LanguageCode);
-const isLanguageCode = (value: unknown): value is LanguageCodeValue =>
-    typeof value === 'string' && languageCodes.includes(value);
+import { canViewBundle } from '../services/wordsBundles/canViewBundle';
+import { ensureBundleWordsGenerated } from '../services/wordsBundles/ensureBundleWordsGenerated';
+import { getFlashcardsCountByBundleId } from '../services/wordsBundles/getFlashcardsCounts';
+import { pickRecommendedBundles } from '../services/wordsBundles/pickRecommendedBundles';
+import { toBundleResponse } from '../services/wordsBundles/toBundleResponse';
 
 const router = Router();
 
@@ -37,6 +44,22 @@ const generateJoinCode = () => {
     return code;
 };
 
+/** Fields that only the server (admin theme-bundle flow, model hooks) may set. */
+const SERVER_MANAGED_BUNDLE_FIELDS = [
+    'category',
+    'level',
+    'ownerId',
+    'premiumOnly',
+    'searchText',
+    'themeInstanceId',
+    'wordsGenerated',
+];
+
+const omitServerManagedFields = (bundle: Record<string, unknown>) =>
+    Object.fromEntries(
+        Object.entries(bundle).filter(([key]) => !SERVER_MANAGED_BUNDLE_FIELDS.includes(key)),
+    );
+
 router.get('/', authenticate, async (req: Request, res: Response) => {
     const { since } = req.query;
     const userId = req.userId ?? '';
@@ -55,11 +78,12 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
 
     const bundles = await WordsBundle.find(query).lean();
 
-    res.json(bundles.map(withIdField));
+    res.json(bundles.map(toBundleResponse));
 });
 
-router.get('/by-ids', async (req: Request, res: Response) => {
+router.get('/by-ids', authenticate, async (req: Request, res: Response) => {
     const { ids } = req.query;
+    const userId = req.userId ?? '';
 
     const bundleIds =
         typeof ids === 'string' ? ids.split(',').filter(id => Types.ObjectId.isValid(id)) : [];
@@ -68,30 +92,30 @@ router.get('/by-ids', async (req: Request, res: Response) => {
         return res.json([]);
     }
 
+    const memberBundleIds = await BundleMember.find({
+        bundleId: { $in: bundleIds },
+        removed: false,
+        userId,
+    }).distinct('bundleId');
+
     const bundles = await WordsBundle.find({
+        $or: [{ visibility: 'public' }, { _id: { $in: memberBundleIds } }],
         _id: { $in: bundleIds },
         removed: false,
     }).lean();
 
     const ownerIds = [...new Set(bundles.map(bundle => bundle.ownerId.toString()))];
-    const bundleObjectIds = bundles.map(bundle => bundle._id);
 
-    const [owners, flashcardsCounts] = await Promise.all([
+    const [owners, flashcardsCountByBundleId] = await Promise.all([
         User.find({ _id: { $in: ownerIds } }, { name: 1, picture: 1 }).lean(),
-        Word.aggregate([
-            { $match: { bundleId: { $in: bundleObjectIds }, removed: false } },
-            { $group: { _id: '$bundleId', count: { $sum: 1 } } },
-        ]),
+        getFlashcardsCountByBundleId(bundles),
     ]);
 
     const ownerNameById = new Map(owners.map(owner => [owner._id.toString(), owner.name]));
     const ownerPictureById = new Map(owners.map(owner => [owner._id.toString(), owner.picture]));
-    const flashcardsCountByBundleId = new Map(
-        flashcardsCounts.map(entry => [entry._id.toString(), entry.count]),
-    );
 
     const mappedBundles = bundles.map(bundle => ({
-        ...withIdField(bundle),
+        ...toBundleResponse(bundle),
         flashcardsCount: flashcardsCountByBundleId.get(bundle._id.toString()) ?? 0,
         ownerName: ownerNameById.get(bundle.ownerId.toString()),
         ownerPicture: ownerPictureById.get(bundle.ownerId.toString()),
@@ -130,11 +154,11 @@ router.get('/search', authenticate, async (req: Request, res: Response) => {
         removed: false,
     };
 
-    if (isLanguageCode(mainLang)) {
+    if (isLanguageCodeValue(mainLang)) {
         query.mainLang = mainLang;
     }
 
-    if (isLanguageCode(translationLang)) {
+    if (isLanguageCodeValue(translationLang)) {
         query.translationLang = translationLang;
     }
 
@@ -160,13 +184,22 @@ router.get('/search', authenticate, async (req: Request, res: Response) => {
         },
     };
 
+    const adminOwnerId = getAdminUserId();
+
     const [facetResult] = await WordsBundle.aggregate<{
         data: Array<{ _id: Types.ObjectId; ownerId: Types.ObjectId; [key: string]: unknown }>;
         totalCount: Array<{ total: number }>;
     }>([
         { $match: query },
         nonEmptyMatchStage,
-        { $match: { firstWord: { $ne: [] } } },
+        {
+            $match: {
+                $or: [
+                    { firstWord: { $ne: [] } },
+                    ...(adminOwnerId ? [{ ownerId: adminOwnerId }] : []),
+                ],
+            },
+        },
         { $project: { firstWord: 0 } },
         {
             $facet: {
@@ -183,30 +216,99 @@ router.get('/search', authenticate, async (req: Request, res: Response) => {
     const bundles = facetResult?.data ?? [];
     const total = facetResult?.totalCount[0]?.total ?? 0;
     const ownerIds = [...new Set(bundles.map(bundle => bundle.ownerId.toString()))];
-    const bundleIds = bundles.map(bundle => bundle._id);
 
-    const [owners, flashcardsCounts] = await Promise.all([
+    const [owners, flashcardsCountByBundleId] = await Promise.all([
         User.find({ _id: { $in: ownerIds } }, { name: 1, picture: 1 }).lean(),
-        Word.aggregate([
-            { $match: { bundleId: { $in: bundleIds }, removed: false } },
-            { $group: { _id: '$bundleId', count: { $sum: 1 } } },
-        ]),
+        getFlashcardsCountByBundleId(
+            bundles.map(bundle => ({
+                _id: bundle._id,
+                themeInstanceId: bundle.themeInstanceId as { toString(): string } | undefined,
+                wordsGenerated: bundle.wordsGenerated as boolean | undefined,
+            })),
+        ),
     ]);
 
     const ownerNameById = new Map(owners.map(owner => [owner._id.toString(), owner.name]));
     const ownerPictureById = new Map(owners.map(owner => [owner._id.toString(), owner.picture]));
-    const flashcardsCountByBundleId = new Map(
-        flashcardsCounts.map(entry => [entry._id.toString(), entry.count]),
-    );
 
     const mappedBundles = bundles.map(bundle => ({
-        ...withIdField(bundle),
+        ...toBundleResponse(bundle),
         flashcardsCount: flashcardsCountByBundleId.get(bundle._id.toString()) ?? 0,
         ownerName: ownerNameById.get(bundle.ownerId.toString()),
         ownerPicture: ownerPictureById.get(bundle.ownerId.toString()),
     }));
 
     res.json({ data: mappedBundles, total });
+});
+
+router.get('/recommended', authenticate, async (req: Request, res: Response) => {
+    const userId = req.userId ?? '';
+
+    const user = await User.findById(userId, {
+        languageLevels: 1,
+        mainLang: 1,
+        translationLang: 1,
+    }).lean();
+
+    if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+    }
+
+    const mainLang = req.query.mainLang ?? user.mainLang;
+    const translationLang = req.query.translationLang ?? user.translationLang;
+
+    if (!isLanguageCodeValue(mainLang) || !isLanguageCodeValue(translationLang)) {
+        return res
+            .status(400)
+            .json({ message: 'mainLang and translationLang must be valid language codes' });
+    }
+
+    const languageLevel = user.languageLevels?.find(entry => entry.language === mainLang);
+
+    if (!languageLevel) {
+        return res.status(400).json({ message: `No language level set for ${mainLang}` });
+    }
+
+    const bundles = await pickRecommendedBundles({
+        level: CEFR_LEVEL_BY_LANGUAGE_LEVEL[languageLevel.level],
+        mainLang,
+        translationLang,
+    });
+
+    // Fire-and-forget: pending theme bundles get their words generated in parallel so they are
+    // likely ready by the time the user opens one. Locking inside ensureBundleWordsGenerated
+    // prevents duplicate GPT calls across concurrent requests.
+    for (const bundle of bundles.filter(bundle => !bundle.wordsGenerated)) {
+        ensureBundleWordsGenerated(bundle)
+            .then(result => {
+                if (result.status !== 'ready' && result.status !== 'locked') {
+                    console.error(
+                        `Background word generation for bundle ${bundle._id} ended with status ${result.status}`,
+                    );
+                }
+            })
+            .catch(error =>
+                console.error(`Background word generation for bundle ${bundle._id} failed:`, error),
+            );
+    }
+
+    const ownerIds = [...new Set(bundles.map(bundle => bundle.ownerId.toString()))];
+
+    const [owners, flashcardsCountByBundleId] = await Promise.all([
+        User.find({ _id: { $in: ownerIds } }, { name: 1, picture: 1 }).lean(),
+        getFlashcardsCountByBundleId(bundles),
+    ]);
+
+    const ownerById = new Map(owners.map(owner => [owner._id.toString(), owner]));
+
+    res.json(
+        bundles.map(bundle => ({
+            ...toBundleResponse(bundle),
+            flashcardsCount: flashcardsCountByBundleId.get(bundle._id.toString()) ?? 0,
+            ownerName: ownerById.get(bundle.ownerId.toString())?.name,
+            ownerPicture: ownerById.get(bundle.ownerId.toString())?.picture,
+        })),
+    );
 });
 
 router.post('/sync', authenticate, async (req: Request, res: Response) => {
@@ -229,7 +331,13 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
 
             const updatedBundle = await WordsBundle.findOneAndUpdate(
                 { _id: bundle.id, ownerId: new Types.ObjectId(userId) },
-                { $set: { ...bundle, updatedAt: nowUTC() } },
+                {
+                    $set: {
+                        ...omitServerManagedFields(bundle),
+                        updatedAt: nowUTC(),
+                        ...(existingBundle ? {} : { wordsGenerated: true }),
+                    },
+                },
                 { new: true, upsert: true },
             );
 
@@ -257,6 +365,84 @@ router.post('/sync', authenticate, async (req: Request, res: Response) => {
     res.json({ rejectedIds, synced, unauthorized });
 });
 
+router.post(
+    '/from-theme-instance',
+    authenticate,
+    requireAdmin,
+    async (req: Request, res: Response) => {
+        const { description, premiumOnly, themeInstanceId, title, translationLang } = req.body as {
+            themeInstanceId?: string;
+            translationLang?: string;
+            title?: string;
+            description?: string;
+            premiumOnly?: boolean;
+        };
+
+        if (typeof themeInstanceId !== 'string' || !themeInstanceId.trim()) {
+            return res.status(400).json({ error: 'themeInstanceId is required' });
+        }
+
+        if (!isLanguageCodeValue(translationLang)) {
+            return res.status(400).json({ error: 'translationLang must be a valid language code' });
+        }
+
+        if (typeof title !== 'string' || !title.trim()) {
+            return res.status(400).json({ error: 'title is required' });
+        }
+
+        const instance = await BundleThemeInstance.findById(themeInstanceId).lean();
+
+        if (!instance) {
+            return res.status(404).json({ error: 'Bundle theme instance not found' });
+        }
+
+        const theme = await BundleTheme.findById(instance.themeId).lean();
+
+        if (!theme) {
+            console.error(`Theme ${instance.themeId} missing for instance ${instance._id}`);
+            return res.status(500).json({ error: 'Failed to create theme bundle' });
+        }
+
+        if (theme.status !== 'active') {
+            return res.status(400).json({ error: 'Theme must be active to create a bundle' });
+        }
+
+        const adminUserId = getAdminUserId();
+
+        if (!adminUserId) {
+            console.error('ADMIN_USER_ID is not configured or is not a valid ObjectId');
+            return res.status(500).json({ error: 'Failed to create theme bundle' });
+        }
+
+        try {
+            const bundle = await WordsBundle.create({
+                category: theme.category,
+                description,
+                level: theme.level,
+                mainLang: instance.mainLang,
+                ownerId: adminUserId,
+                premiumOnly: premiumOnly ?? false,
+                themeInstanceId: instance._id,
+                title,
+                translationLang,
+                visibility: 'public',
+                wordsGenerated: false,
+            });
+
+            res.status(201).json(withIdField(bundle.toObject()));
+        } catch (error) {
+            if ((error as { code?: number }).code === 11000) {
+                return res.status(409).json({
+                    error: 'A bundle for this theme instance and translationLang already exists',
+                });
+            }
+
+            console.error('Failed to create theme bundle:', error);
+            res.status(500).json({ error: 'Failed to create theme bundle' });
+        }
+    },
+);
+
 router.delete('/:id', authenticate, async (req: Request, res: Response) => {
     const userId = req.userId ?? '';
     const { id } = req.params;
@@ -267,7 +453,7 @@ router.delete('/:id', authenticate, async (req: Request, res: Response) => {
         return res.status(404).json({ message: 'Bundle not found' });
     }
 
-    if (bundle.ownerId.toString() !== userId) {
+    if (!isBundleOwner(bundle, userId)) {
         return res.status(403).json({ message: 'Only the owner can delete the bundle' });
     }
 
@@ -298,7 +484,7 @@ router.post('/:id/generate-invitation-code', authenticate, async (req: Request, 
         return res.status(404).json({ message: 'Bundle not found' });
     }
 
-    if (bundle.ownerId.toString() !== userId) {
+    if (!isBundleOwner(bundle, userId)) {
         return res.status(403).json({ message: 'Only the owner can generate join codes' });
     }
 
@@ -337,12 +523,48 @@ router.post('/:id/generate-invitation-code', authenticate, async (req: Request, 
     });
 });
 
+router.post('/:id/ensure-words', authenticate, async (req: Request, res: Response) => {
+    const userId = req.userId ?? '';
+    const { id } = req.params;
+
+    if (!Types.ObjectId.isValid(id)) {
+        return res.status(404).json({ message: 'Bundle not found' });
+    }
+
+    const bundle = await WordsBundle.findOne({ _id: id, removed: false });
+
+    if (!bundle) {
+        return res.status(404).json({ message: 'Bundle not found' });
+    }
+
+    if (!(await canViewBundle(bundle, userId))) {
+        return res.status(403).json({ message: 'You do not have access to this bundle' });
+    }
+
+    const result = await ensureBundleWordsGenerated(bundle);
+
+    switch (result.status) {
+        case 'not-a-theme-bundle':
+            return res.status(400).json({ message: 'Bundle is not a theme bundle' });
+        case 'misconfigured':
+            return res.status(500).json({ message: 'Failed to generate bundle words' });
+        case 'locked':
+            return res
+                .status(409)
+                .json({ message: 'Words are already being generated for this bundle' });
+        case 'failed':
+            return res
+                .status(502)
+                .json({ message: 'Failed to generate bundle words, please retry' });
+        case 'ready':
+            return res.json(result.words.map(withIdField));
+    }
+});
+
 router.post('/join/:code', authenticate, async (req: Request, res: Response) => {
     const userId = req.userId ?? '';
     const { code } = req.params;
     const { bundleId } = req.query;
-
-    console.log(bundleId, code);
 
     const joinCode = await BundleJoinCode.findOne({ code });
 
@@ -376,7 +598,7 @@ router.post('/join/:code', authenticate, async (req: Request, res: Response) => 
         await existingMember.save();
 
         return res.json({
-            bundle: withIdField(bundle),
+            bundle: toBundleResponse(bundle),
             member: withIdField(existingMember.toObject()),
         });
     }
@@ -389,7 +611,7 @@ router.post('/join/:code', authenticate, async (req: Request, res: Response) => 
     });
 
     res.status(201).json({
-        bundle: withIdField(bundle),
+        bundle: toBundleResponse(bundle),
         member: withIdField(member.toObject()),
     });
 });

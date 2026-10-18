@@ -6,6 +6,8 @@ import BundleMember from '../models/core/BundleMember';
 import Word from '../models/core/Word';
 import WordsBundle from '../models/core/WordsBundle';
 import { withIdField } from '../services/utils/withIdField';
+import { canViewBundle } from '../services/wordsBundles/canViewBundle';
+import { ensureBundleWordsGenerated } from '../services/wordsBundles/ensureBundleWordsGenerated';
 
 const router = Router();
 
@@ -26,15 +28,28 @@ router.get('/words', authenticate, async (req: Request, res: Response) => {
             return res.status(404).json({ message: 'Bundle not found' });
         }
 
-        if (bundle.visibility !== 'public') {
-            const membership = await BundleMember.findOne({
-                bundleId: requestedBundleId,
-                removed: false,
-                userId: new Types.ObjectId(userId),
-            });
+        if (!(await canViewBundle(bundle, userId))) {
+            return res.status(403).json({ message: 'You do not have access to this bundle' });
+        }
 
-            if (!membership) {
-                return res.status(403).json({ message: 'You do not have access to this bundle' });
+        if (bundle.themeInstanceId && !bundle.wordsGenerated) {
+            const result = await ensureBundleWordsGenerated(bundle);
+
+            switch (result.status) {
+                case 'misconfigured':
+                    return res.status(500).json({ message: 'Failed to generate bundle words' });
+                case 'locked':
+                    return res.status(409).json({
+                        message: 'Words are already being generated for this bundle',
+                    });
+                case 'failed':
+                    return res
+                        .status(502)
+                        .json({ message: 'Failed to generate bundle words, please retry' });
+                case 'ready':
+                    return res.json(result.words.map(withIdField));
+                case 'not-a-theme-bundle':
+                    break;
             }
         }
 
@@ -78,17 +93,35 @@ router.post('/words/sync', authenticate, async (req: Request, res: Response) => 
                 continue;
             }
 
-            const targetBundleId = existingWord ? existingWord.bundleId : word.bundleId;
+            const currentBundleId = existingWord ? existingWord.bundleId : null;
+            const requestedBundleId = word.bundleId ?? null;
 
-            if (targetBundleId) {
+            if (currentBundleId && existingWord) {
                 const membership = await BundleMember.findOne({
-                    bundleId: targetBundleId,
+                    bundleId: currentBundleId,
                     removed: false,
                     role: { $in: ['owner', 'editor'] },
                     userId: new Types.ObjectId(userId),
                 });
 
                 if (!membership) {
+                    unauthorized.push(existingWord.toObject());
+                    continue;
+                }
+            } else if (existingWord && existingWord.userId.toString() !== userId) {
+                unauthorized.push(existingWord.toObject());
+                continue;
+            }
+
+            if (requestedBundleId && `${requestedBundleId}` !== `${currentBundleId ?? ''}`) {
+                const targetMembership = await BundleMember.findOne({
+                    bundleId: requestedBundleId,
+                    removed: false,
+                    role: { $in: ['owner', 'editor'] },
+                    userId: new Types.ObjectId(userId),
+                });
+
+                if (!targetMembership) {
                     if (existingWord) {
                         unauthorized.push(existingWord.toObject());
                     } else {
@@ -96,9 +129,6 @@ router.post('/words/sync', authenticate, async (req: Request, res: Response) => 
                     }
                     continue;
                 }
-            } else if (existingWord && existingWord.userId.toString() !== userId) {
-                unauthorized.push(existingWord.toObject());
-                continue;
             }
 
             const ownerUserId = existingWord ? existingWord.userId : new Types.ObjectId(userId);

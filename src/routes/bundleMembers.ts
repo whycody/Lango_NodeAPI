@@ -4,6 +4,7 @@ import { Types } from 'mongoose';
 import authenticate from '../middleware/auth';
 import BundleMember from '../models/core/BundleMember';
 import WordsBundle from '../models/core/WordsBundle';
+import { isBundleOwner } from '../services/utils/isBundleOwner';
 import { withIdField } from '../services/utils/withIdField';
 
 const router = Router();
@@ -30,12 +31,26 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
 
 router.get('/bundle/:bundleId', authenticate, async (req: Request, res: Response) => {
     const { bundleId } = req.params;
+    const userId = req.userId ?? '';
 
     const bundle = await WordsBundle.findOne({ _id: bundleId, removed: false });
 
     if (!bundle) {
         res.json([]);
         return;
+    }
+
+    if (bundle.visibility !== 'public') {
+        const membership = await BundleMember.findOne({
+            bundleId,
+            removed: false,
+            userId: new Types.ObjectId(userId),
+        });
+
+        if (!membership) {
+            res.json([]);
+            return;
+        }
     }
 
     const members = await BundleMember.find({ bundleId, removed: false })
@@ -85,7 +100,7 @@ router.patch('/:id/role', authenticate, async (req: Request, res: Response) => {
         return;
     }
 
-    if (bundle.ownerId.toString() !== userId) {
+    if (!isBundleOwner(bundle, userId)) {
         res.status(403).json({ message: 'Only the owner can change member roles' });
         return;
     }
@@ -150,7 +165,7 @@ router.delete('/:id', authenticate, async (req: Request, res: Response) => {
         return;
     }
 
-    if (bundle.ownerId.toString() !== userId) {
+    if (!isBundleOwner(bundle, userId)) {
         res.status(403).json({ message: 'Only the owner can remove members' });
         return;
     }

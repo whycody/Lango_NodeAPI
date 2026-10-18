@@ -1,4 +1,6 @@
-import { applySearchTextToUpdate, buildSearchText } from '../WordsBundle';
+import { Types } from 'mongoose';
+
+import WordsBundle, { applySearchTextToUpdate, buildSearchText } from '../WordsBundle';
 
 describe('buildSearchText', () => {
     it('combines normalized title and description', () => {
@@ -49,5 +51,19 @@ describe('applySearchTextToUpdate', () => {
 
     it('does nothing when the update is null', () => {
         expect(() => applySearchTextToUpdate(null)).not.toThrow();
+    });
+});
+
+describe('WordsBundle schema validation', () => {
+    it('passes validation for a brand-new document without searchText set explicitly', async () => {
+        const bundle = new WordsBundle({
+            mainLang: 'en',
+            ownerId: new Types.ObjectId(),
+            title: 'Kitchen items',
+            translationLang: 'pl',
+        });
+
+        await expect(bundle.validate()).resolves.toBeUndefined();
+        expect(bundle.searchText).toBe('kitchen items');
     });
 });
